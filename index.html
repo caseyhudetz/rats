@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Rats of Lakeview</title>
 <meta name="description" content="Every rodent complaint filed with Chicago 311 in Lakeview's 44th Ward since 2019, mapped by block.">
+<meta name="theme-color" content="#E6ECEF">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The Rats of Lakeview">
+<meta property="og:description" content="8,258 rodent complaints filed with Chicago 311 in Ward 44 since 2019, mapped block by block. Nearly half of them come from fifty blocks.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="The Rats of Lakeview">
+<meta name="twitter:description" content="8,258 rodent complaints filed with Chicago 311 in Ward 44 since 2019, mapped block by block.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23132430'/><circle cx='16' cy='16' r='8.5' fill='%23BE1E3C'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,200;0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet">
@@ -44,7 +52,10 @@ h1 em{font-style:italic;font-weight:300}
 .mastline span{font-size:12px;color:var(--slate);font-family:"IBM Plex Mono",monospace;letter-spacing:.04em}
 
 /* ---- MAP ---- */
-.mapblock{padding-top:24px}
+.mapblock{padding-top:24px;position:relative}
+.skipout{position:absolute;left:-9999px}
+.skipout:focus{left:0;top:100%;background:var(--ink);color:#fff;padding:8px 12px;z-index:50;text-decoration:none;
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase}
 .mapbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .search{position:relative;flex:1;min-width:230px;max-width:340px}
 .search input{width:100%;font-family:"IBM Plex Mono",monospace;font-size:12.5px;padding:9px 12px;
@@ -73,6 +84,8 @@ h1 em{font-style:italic;font-weight:300}
 .blk circle{stroke:#F4F8FA;stroke-opacity:.85;paint-order:stroke;vector-effect:non-scaling-stroke}
 .blk.dim circle{opacity:.12}
 .blk.hi circle{stroke:var(--ink);stroke-opacity:1;stroke-width:2;vector-effect:non-scaling-stroke}
+.blk:focus{outline:none}
+.blk:focus-visible circle{stroke:var(--ink);stroke-opacity:1;stroke-width:2.5;vector-effect:non-scaling-stroke}
 .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);padding:9px 11px;
   font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.5;z-index:60;opacity:0;
   transition:opacity .09s;max-width:250px;letter-spacing:.01em}
@@ -99,7 +112,7 @@ h1 em{font-style:italic;font-weight:300}
 .spark{position:relative;height:52px;cursor:crosshair}
 .spark svg{display:block;width:100%;height:100%}
 .spark .win{fill:rgba(190,30,60,.13)}
-.spark .bars{fill:var(--slate);opacity:.55}
+.spark .sbar{fill:var(--slate);opacity:.55}
 .spark .cur{stroke:var(--hot);stroke-width:1}
 .tlaxis{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:9.5px;
   color:var(--faint);letter-spacing:.1em;padding-top:5px;border-top:1px solid var(--rule);margin-top:2px}
@@ -152,6 +165,7 @@ section{padding:62px 0}
 .bars div:hover{background:var(--hot)}
 .bars div.peak{background:#132430}
 .axlbl{display:flex;gap:5px;margin-top:8px}
+.axlbl.tight{gap:0}
 .axlbl span{flex:1;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--faint)}
 .linewrap{position:relative;height:180px;border-bottom:1px solid var(--ink)}
 .linewrap svg{position:absolute;inset:0;width:100%;height:100%}
@@ -170,6 +184,10 @@ td{padding:10px 12px 10px 0;border-bottom:1px solid var(--rule)}
 td.n,th.n{text-align:right;font-family:"IBM Plex Mono",monospace}
 tbody tr{cursor:pointer}
 tbody tr:hover{background:var(--paper)}
+tbody tr:focus-within{background:var(--paper)}
+.rowbtn{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.rowbtn:hover{color:var(--hot)}
+.rowbtn:focus-visible{outline:2px solid var(--cool);outline-offset:2px}
 .rk{font-family:"IBM Plex Mono",monospace;color:var(--faint);font-size:11px}
 .spk{display:inline-block;vertical-align:middle}
 
@@ -213,6 +231,14 @@ footer a{color:var(--ink)}
 <body>
 <a class="skip" href="#map">Skip to map</a>
 
+<noscript><div class="wrap" style="padding:34px 0 6px">
+  <p style="max-width:62ch;border:1px solid var(--ink);padding:16px 18px;margin:0;font-size:14px;line-height:1.6">
+  The map, charts and tables on this page are drawn by script from a dataset embedded in the file, so with
+  JavaScript turned off there is nothing below to see. The underlying data is City of Chicago 311 service
+  requests, request type &ldquo;Rodent Baiting/Rat Complaint&rdquo;, Ward 44, February 2019 to August 2026 &mdash;
+  8,258 complaints across 330 blocks.</p>
+</div></noscript>
+
 <div class="wrap mast">
   <div class="eyebrow">Chicago 311 &middot; Rodent complaints &middot; Ward 44 &middot; <span id="range"></span></div>
   <h1>The <em>Rats</em> of Lakeview</h1>
@@ -230,6 +256,8 @@ footer a{color:var(--ink)}
     <button class="btn" id="mWin" aria-pressed="false">Timeline</button>
     <button class="btn" id="mReset">Reset view</button>
   </div>
+
+  <a class="skipout" href="#worst">Skip past map</a>
 
   <div class="mapframe" id="frame">
     <svg id="svg" role="img" aria-label="Map of rat complaints by block in Lakeview"></svg>
@@ -260,12 +288,21 @@ footer a{color:var(--ink)}
 
 <div class="wrap">
 
-  <section>
+  <section id="worst">
     <div class="sechead">
       <h2>The five worst blocks</h2>
       <p>Ranked by total complaints since 2019. Street View opens at the single address on each block with the most reports.</p>
     </div>
     <div class="offs" id="offs"></div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <h2>How few blocks it is</h2>
+      <p>Every complaint since 2019, with the 330 blocks sorted worst to quietest. Fifteen per cent of the blocks carry forty-five per cent of the calls; the quietest seventy per cent together account for less than a third.</p>
+    </div>
+    <div class="concbar" id="concbar"></div>
+    <div class="conclegend" id="conclegend"></div>
   </section>
 
   <section>
@@ -301,7 +338,7 @@ footer a{color:var(--ink)}
         <div class="sechead"><h2>City response</h2></div>
         <div class="axmax mono" id="smax"></div>
         <div class="linewrap" id="sline"></div>
-        <div class="axlbl" id="slbl"></div>
+        <div class="axlbl tight" id="slbl"></div>
         <p class="note">Median days from call to closed ticket. The 2021 to 2023 backlog pushed waits past a week. Response has since come back down.</p>
       </div>
     </div>
@@ -323,7 +360,7 @@ footer a{color:var(--ink)}
 
 <footer><div class="wrap">
   <b>Source.</b> City of Chicago 311 Service Requests, request type &ldquo;Rodent Baiting/Rat Complaint&rdquo;, filtered to Ward 44. Pulled from the Chicago Data Portal on August 26, 2026. This page carries its own copy of the data and its own map, so it needs no keys, no tile server and no live connection.<br>
-  <b>Where the pin lands.</b> The city geocodes these complaints to the property, not the curb, and rodent baiting happens in the yard and the alley. Across this ward the published coordinate sits a median of 19.5 metres off the street centreline, and 48% of them land more than 20 metres off, which is roughly the depth of a Chicago lot. Dropping Street View at the raw coordinate therefore lands you behind the building. Each link here is projected back onto the street and aimed at the address instead.<br>
+  <b>Where the pin lands.</b> The city geocodes these complaints to the property, not the curb, and rodent baiting happens in the yard and the alley. Across this ward the published coordinate sits a median of <span id="geoMed"></span> metres off the street centreline, and <span id="geoOver"></span> of them land more than 20 metres off, which is roughly the depth of a Chicago lot. Dropping Street View at the raw coordinate therefore lands you behind the building. Each link here is projected back onto the street and aimed at the address instead.<br>
   <b>Method.</b> Complaints are grouped into 100-address blocks and drawn at the median coordinate of the reports on that block. The street grid is traced from the reports themselves, so only streets that have generated complaints appear. Closure time runs from created date to closed date, excluding tickets left open past a year. Duplicate flags are kept in, because a duplicate is still a neighbor who called.<br>
   <b>Caveat.</b> This maps reports, not rats. A block with organized, persistent neighbors will look worse than a block with the same problem and nobody dialing.
 </div></footer>
@@ -335,8 +372,13 @@ const fmt = n => n.toLocaleString('en-US');
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const mLabel = i => MON[i%12] + ' ' + (2019 + Math.floor(i/12));
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const YRS = Math.ceil(D.nm/12);
+const MONF = ['January','February','March','April','May','June',
+              'July','August','September','October','November','December'];
 
 $('#range').textContent = D.first.slice(0,4) + '\u2013' + D.last.slice(0,4);
+$('#geoMed').textContent = D.geo.median;
+$('#geoOver').textContent = D.geo.over20 + '%';
 
 /* masthead figures */
 $('#mastline').innerHTML = [
@@ -349,19 +391,26 @@ $('#mastline').innerHTML = [
 
 /* ================= MAP ================= */
 const frameEl=document.getElementById('frame');
-const _fw=frameEl.clientWidth||1000, _fh=frameEl.clientHeight||640;
-const W=1000, H=Math.round(1000*_fh/_fw), PAD=Math.min(46,Math.round(W*0.035));
 let latMin=Infinity,latMax=-Infinity,lonMin=Infinity,lonMax=-Infinity;
 D.blocks.forEach(b=>{latMin=Math.min(latMin,b.lat);latMax=Math.max(latMax,b.lat);
   lonMin=Math.min(lonMin,b.lon);lonMax=Math.max(lonMax,b.lon);});
 const K = Math.cos(41.9426*Math.PI/180);
 const gw=(lonMax-lonMin)*K, gh=(latMax-latMin);
-const S = Math.min((W-PAD*2)/gw, (H-PAD*2)/gh);
-const ox = (W - gw*S)/2, oy = (H - gh*S)/2;
+const W=1000, PAD=Math.min(46,Math.round(W*0.035));
+/* the viewBox is refitted to the frame, so resizing the window or turning a phone
+   sideways rescales the ward instead of letterboxing it */
+let H, S, ox, oy, U;
+function fit(){
+  const fw=frameEl.clientWidth||1000, fh=frameEl.clientHeight||640;
+  H=Math.round(W*fh/fw); U=W/fw;
+  S=Math.min((W-PAD*2)/gw,(H-PAD*2)/gh);
+  ox=(W-gw*S)/2; oy=(H-gh*S)/2;
+}
+fit();
 const PX = lon => ox + (lon-lonMin)*K*S;
 const PY = lat => oy + (latMax-lat)*S;
 
-const svg=$('#svg'); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+const svg=$('#svg');
 const NS='http://www.w3.org/2000/svg';
 const el=(n,a)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
 
@@ -369,40 +418,64 @@ const gRoot=el('g',{}); svg.appendChild(gRoot);
 
 /* street grid, centerlines fitted to the reports themselves */
 const gSt=el('g',{}); gRoot.appendChild(gSt);
-D.streets.forEach(st=>{
-  gSt.appendChild(el('line',{x1:PX(st.a[1]).toFixed(1),y1:PY(st.a[0]).toFixed(1),
-    x2:PX(st.b[1]).toFixed(1),y2:PY(st.b[0]).toFixed(1),
-    class:'streetline'+(st.w>1?' major':''),'stroke-width':st.w>1?1.5:0.8}));
+const STL = D.streets.map(st=>{
+  const e=el('line',{class:'streetline'+(st.w>1?' major':''),'stroke-width':st.w>1?1.5:0.8});
+  gSt.appendChild(e); return {e,st};
 });
-const gLbl=el('g',{}); gRoot.appendChild(gLbl); const LBL=[];
-D.streets.filter(s=>s.c>=6).slice(0,20).forEach(st=>{
-  const x1=PX(st.a[1]),y1=PY(st.a[0]),x2=PX(st.b[1]),y2=PY(st.b[0]);
-  let ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
-  if(ang>90)ang-=180; if(ang<-90)ang+=180;
-  const f=0.14, mx=x1+(x2-x1)*f, my=y1+(y2-y1)*f;
-  const txt=st.s.replace(/^[NSEW] /,'').replace(/ (ST|AVE|PL|RD|PKWY|BLVD|DR|CT|TER)$/,'');
+const gLbl=el('g',{}); gRoot.appendChild(gLbl);
+const LBL = D.streets.filter(s=>s.c>=6).slice(0,20).map(st=>{
   const g=el('g',{class:'stlabel'});
-  g.dataset.rot=`rotate(${ang.toFixed(1)} ${mx} ${my})`; g.dataset.mx=mx; g.dataset.my=my;
-  g.setAttribute('transform',g.dataset.rot);
-  g.appendChild(el('rect',{x:mx-txt.length*2.6-3,y:my-9.6,width:txt.length*5.2+6,height:9,
-    fill:'var(--paper)','fill-opacity':.86}));
-  const tx=el('text',{x:mx,y:my-3,'text-anchor':'middle'}); tx.textContent=txt;
-  g.appendChild(tx); gLbl.appendChild(g); LBL.push(g);
+  const rect=el('rect',{fill:'var(--paper)','fill-opacity':.86});
+  const tx=el('text',{'text-anchor':'middle'});
+  tx.textContent=st.s.replace(/^[NSEW] /,'').replace(/ (ST|AVE|PL|RD|PKWY|BLVD|DR|CT|TER)$/,'');
+  g.appendChild(rect); g.appendChild(tx); gLbl.appendChild(g);
+  return {g,rect,tx,st,major:st.w>1,f:0.14};
 });
 
 /* block circles */
 const gB=el('g',{}); gRoot.appendChild(gB);
 const rad = v => Math.max(2.2, Math.sqrt(v)*1.55);
 const col = v => v>=60?'#BE1E3C' : v>=25?'#D98C24' : '#3F7E9C';
+/* named with aria-label rather than <title>: a <title> child makes the browser draw its
+   own native tooltip on top of the styled one */
 const nodes = D.blocks.map(b=>{
-  const g=el('g',{class:'blk',tabindex:'0',role:'button'});
-  const c=el('circle',{cx:PX(b.lon).toFixed(1),cy:PY(b.lat).toFixed(1),r:rad(b.n),
-    fill:col(b.n),'fill-opacity':.46,'stroke-width':.7});
-  g.appendChild(c);
-  const lab=el('title'); lab.textContent=b.b; g.appendChild(lab);
-  gB.appendChild(g);
+  const g=el('g',{class:'blk',tabindex:'0',role:'button','aria-label':`${b.b}, ${b.n} complaints`});
+  const c=el('circle',{r:rad(b.n),fill:col(b.n),'fill-opacity':.46,'stroke-width':.7});
+  g.appendChild(c); gB.appendChild(g);
   return {b,g,c};
 });
+
+/* lay the map out for the current viewBox; safe to call again after a resize */
+function place(){
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  STL.forEach(({e,st})=>{
+    e.setAttribute('x1',PX(st.a[1]).toFixed(1)); e.setAttribute('y1',PY(st.a[0]).toFixed(1));
+    e.setAttribute('x2',PX(st.b[1]).toFixed(1)); e.setAttribute('y2',PY(st.b[0]).toFixed(1));
+  });
+  /* hold street names at a constant size in real pixels, whatever the viewBox scale is,
+     and drop the minor ones once the frame is too narrow to fit them */
+  const fs=Math.max(8.2,9.2*U), k=fs/8.2;
+  LBL.forEach(o=>{
+    o.g.style.display = (U>1.7 && !o.major) ? 'none' : '';
+    o.g.style.fontSize = fs.toFixed(2)+'px';
+    const x1=PX(o.st.a[1]),y1=PY(o.st.a[0]),x2=PX(o.st.b[1]),y2=PY(o.st.b[0]);
+    let ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+    if(ang>90)ang-=180; if(ang<-90)ang+=180;
+    const mx=x1+(x2-x1)*o.f, my=y1+(y2-y1)*o.f, len=o.tx.textContent.length;
+    o.rect.setAttribute('x',(mx-len*2.6*k-3*k).toFixed(1));
+    o.rect.setAttribute('y',(my-9.6*k).toFixed(1));
+    o.rect.setAttribute('width',(len*5.2*k+6*k).toFixed(1));
+    o.rect.setAttribute('height',(9*k).toFixed(1));
+    o.tx.setAttribute('x',mx.toFixed(1)); o.tx.setAttribute('y',(my-3*k).toFixed(1));
+    o.g.dataset.rot=`rotate(${ang.toFixed(1)} ${mx} ${my})`;
+    o.g.dataset.mx=mx; o.g.dataset.my=my;
+    o.g.setAttribute('transform',o.g.dataset.rot);
+  });
+  nodes.forEach(nd=>{
+    nd.c.setAttribute('cx',PX(nd.b.lon).toFixed(1));
+    nd.c.setAttribute('cy',PY(nd.b.lat).toFixed(1));
+  });
+}
 
 /* window counts */
 function winCount(b,a,z){let t=0;for(const[m,c] of b.ms){if(m>=a&&m<=z)t+=c;}return t;}
@@ -438,12 +511,14 @@ nodes.forEach(nd=>{
   const body=()=>`<b>${b.b}</b>
     ${MODE==='all'?b.n+' all time':nd.v+' in this window'}<br>
     <s>Last 12 mo</s> ${b.r}<br><s>Active</s> ${b.y} years<br>
-    <s>Median close</s> ${b.med!==null?b.med+' days':'n/a'}<br><s>Latest</s> ${b.l}`;
+    <s>Median close</s> ${b.med!==null?b.med.toFixed(1)+' days':'n/a'}<br><s>Latest</s> ${b.l}`;
   nd.g.addEventListener('mousemove',e=>showTip(e,body()));
   nd.g.addEventListener('mouseleave',hideTip);
   nd.g.addEventListener('focus',()=>{tip.innerHTML=body();tip.style.opacity=1;tip.style.left='14px';tip.style.top='14px';});
   nd.g.addEventListener('blur',hideTip);
   nd.g.addEventListener('click',()=>flyTo(b,3.2));
+  nd.g.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();flyTo(b,3.2);}});
 });
 
 /* pan + zoom */
@@ -452,7 +527,7 @@ function apply(){
   gRoot.setAttribute('transform',`translate(${tx} ${ty}) scale(${z})`);
   gSt.style.strokeWidth='';
   const k=1/z;
-  LBL.forEach(g=>{const mx=+g.dataset.mx,my=+g.dataset.my;
+  LBL.forEach(o=>{const g=o.g,mx=+g.dataset.mx,my=+g.dataset.my;
     g.setAttribute('transform',`${g.dataset.rot} translate(${mx} ${my}) scale(${k}) translate(${-mx} ${-my})`);});
   gLbl.style.display = z>7 ? 'none' : '';
   nodes.forEach(nd=>{ if(nd.r0!==undefined) nd.c.setAttribute('r',(nd.r0/Math.pow(z,0.42)).toFixed(2)); });
@@ -462,11 +537,34 @@ function zoomAt(f,cx,cy){const nz=Math.min(14,Math.max(1,z*f));const k=nz/z;tx=c
 function svgPt(e){const r=svg.getBoundingClientRect();return[(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H];}
 frame.addEventListener('wheel',e=>{e.preventDefault();const[cx,cy]=svgPt(e);zoomAt(e.deltaY<0?1.18:1/1.18,cx,cy);},{passive:false});
 let drag=null;
-frame.addEventListener('pointerdown',e=>{if(e.target.closest('.mapctl'))return;drag={x:e.clientX,y:e.clientY,tx,ty};frame.classList.add('drag');frame.setPointerCapture(e.pointerId);});
-frame.addEventListener('pointermove',e=>{if(!drag)return;const r=svg.getBoundingClientRect();
+const pts=new Map(); let pinch=null;
+const pinchState=()=>{const[a,b]=[...pts.values()];
+  return {d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2,z,tx,ty};};
+frame.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.mapctl'))return;
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  frame.setPointerCapture(e.pointerId);
+  if(pts.size>=2){drag=null;frame.classList.remove('drag');pinch=pinchState();}
+  else{drag={x:e.clientX,y:e.clientY,tx,ty};frame.classList.add('drag');}
+});
+frame.addEventListener('pointermove',e=>{
+  if(pts.has(e.pointerId))pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  const r=svg.getBoundingClientRect();
+  if(pinch&&pts.size>=2){
+    const[a,b]=[...pts.values()], d=Math.hypot(a.x-b.x,a.y-b.y);
+    if(pinch.d>6){
+      const nz=Math.min(14,Math.max(1,pinch.z*(d/pinch.d))), k=nz/pinch.z;
+      const cx=(pinch.mx-r.left)/r.width*W, cy=(pinch.my-r.top)/r.height*H;
+      tx=cx-(cx-pinch.tx)*k; ty=cy-(cy-pinch.ty)*k; z=nz; clamp(); apply();
+    }
+    return;
+  }
+  if(!drag)return;
   tx=drag.tx+(e.clientX-drag.x)/r.width*W; ty=drag.ty+(e.clientY-drag.y)/r.height*H; clamp(); apply();});
-frame.addEventListener('pointerup',()=>{drag=null;frame.classList.remove('drag');});
-frame.addEventListener('pointercancel',()=>{drag=null;frame.classList.remove('drag');});
+function endPt(e){pts.delete(e.pointerId); if(pts.size<2)pinch=null;
+  if(!pts.size){drag=null;frame.classList.remove('drag');}}
+frame.addEventListener('pointerup',endPt);
+frame.addEventListener('pointercancel',endPt);
 $('#zIn').onclick=()=>zoomAt(1.45,W/2,H/2);
 $('#zOut').onclick=()=>zoomAt(1/1.45,W/2,H/2);
 $('#mReset').onclick=()=>{z=1;tx=0;ty=0;apply();nodes.forEach(n=>n.g.classList.remove('dim','hi'));};
@@ -502,7 +600,7 @@ const tsMax=Math.max(...D.ts);
 const bw=SW/D.nm;
 let sparkHTML='';
 D.ts.forEach((v,i)=>{const h=v/tsMax*(SH-6);
-  sparkHTML+=`<rect class="bars" x="${(i*bw).toFixed(2)}" y="${(SH-h).toFixed(2)}" width="${(bw-.9).toFixed(2)}" height="${h.toFixed(2)}"/>`;});
+  sparkHTML+=`<rect class="sbar" x="${(i*bw).toFixed(2)}" y="${(SH-h).toFixed(2)}" width="${(bw-.9).toFixed(2)}" height="${h.toFixed(2)}"/>`;});
 sparksvg.innerHTML = `<rect id="winrect" class="win" x="0" y="0" width="0" height="${SH}"/>` + sparkHTML +
   `<line id="curline" class="cur" x1="0" y1="0" x2="0" y2="${SH}"/>`;
 let ax=''; for(let y=2019;y<=2026;y++) ax+=`<span>${y}</span>`;
@@ -562,7 +660,12 @@ $('#mAll').onclick=()=>setMode('all');
 $('#mWin').onclick=()=>{setMode('win');};
 setWin(D.nm-1,true);
 setMode('all');
-apply();
+place(); apply();
+
+let rsz;
+addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{
+  const h0=H; fit(); if(H===h0)return; place(); clamp(); apply();
+},180);});
 
 /* ================= WORST BLOCKS ================= */
 $('#offs').innerHTML = D.blocks.slice(0,5).map((b,i)=>{
@@ -572,10 +675,24 @@ $('#offs').innerHTML = D.blocks.slice(0,5).map((b,i)=>{
     <div class="n">${b.n}</div>
     <div class="u">complaints</div>
     <div class="a">${b.b}</div>
-    <div class="m">${b.r} in the last 12 months<br>active ${b.y} of 8 years<br>worst address: ${b.top.replace(/^(\d+)\s/,'$1 ')}<br>${b.tn} reports there alone</div>
+    <div class="m">${b.r} in the last 12 months<br>active ${b.y} of ${YRS} years<br>worst address: ${b.top.replace(/^(\d+)\s/,'$1 ')}<br>${b.tn} reports there alone</div>
     <a href="${sv}" target="_blank" rel="noopener">Street View &rarr;</a>
   </div>`;
 }).join('');
+
+/* ================= CONCENTRATION ================= */
+const CB=[
+  ['Worst 10 blocks', D.conc[10],            '#BE1E3C','#fff'],
+  ['Blocks 11\u201325',   D.conc[25]-D.conc[10], '#C4562C','#fff'],
+  ['Blocks 26\u201350',   D.conc[50]-D.conc[25], '#D98C24','var(--ink)'],
+  ['Blocks 51\u2013100',  D.conc[100]-D.conc[50],'#7A9BAE','var(--ink)'],
+  ['The other '+(D.nblocks-100)+' blocks', 100-D.conc[100], '#A9BEC9','var(--ink)']
+];
+$('#concbar').innerHTML = CB.map(c=>
+  `<div style="width:${c[1]}%;background:${c[2]};color:${c[3]}"
+        data-t="<b>${c[0]}</b>${c[1].toFixed(1)}% of all complaints">${c[1]>=7?c[1].toFixed(1)+'%':''}</div>`).join('');
+$('#conclegend').innerHTML = CB.map(c=>
+  `<div><u style="background:${c[2]}"></u>${c[0]}</div>`).join('');
 
 /* ================= WHAT IS REPORTED ================= */
 function hbars(el, rows, unit){
@@ -604,12 +721,14 @@ $('#mbars').innerHTML = D.monthly.map((v,i)=>
   `<div class="${v>mmax*.9?'peak':''}" style="height:${v/mmax*100}%"
    data-t="<b>${MON[i]}</b>${fmt(v)} complaints<br>${(v/mtot*100).toFixed(1)}% of the year"></div>`).join('');
 $('#mlbl').innerHTML = MON.map(m=>`<span>${m[0]}</span>`).join('');
-$('#mmax').textContent = fmt(mmax)+' in August, the peak month';
+$('#mmax').textContent = fmt(mmax)+' in '+MONF[D.monthly.indexOf(mmax)]+', the peak month';
 
 /* ================= RESPONSE ================= */
 const yrs=Object.keys(D.speed).sort(), sv=yrs.map(y=>D.speed[y]);
 const smax=Math.max(...sv)*1.2;
-const cx=i=>(i/(yrs.length-1))*100;
+/* centre each point in its own column so it matches the .axlbl flex track below
+   and no longer hangs half-off the left and right edges */
+const cx=i=>((i+0.5)/yrs.length)*100;
 const poly=yrs.map((y,i)=>`${cx(i)},${(100-D.speed[y]/smax*100).toFixed(2)}`).join(' ');
 $('#sline').innerHTML =
   `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -638,16 +757,16 @@ document.addEventListener('mousemove',e=>{
 
 /* ================= TABLE ================= */
 $('#tbody').innerHTML = D.blocks.slice(0,30).map((b,i)=>{
-  const yrCounts=Array(8).fill(0);
+  const yrCounts=Array(YRS).fill(0);
   b.ms.forEach(([m,c])=>{yrCounts[Math.floor(m/12)]+=c;});
   const ymax=Math.max(...yrCounts,1);
   const sp=yrCounts.map((v,j)=>`<rect x="${j*7}" y="${16-v/ymax*16}" width="5.4" height="${Math.max(1,v/ymax*16)}" fill="#56707E" opacity=".62"/>`).join('');
   return `<tr data-i="${i}">
     <td class="rk">${String(i+1).padStart(2,'0')}</td>
-    <td>${b.b}</td>
+    <td><button class="rowbtn" data-i="${i}">${b.b}</button></td>
     <td><svg class="spk" width="56" height="17" viewBox="0 0 56 17">${sp}</svg></td>
     <td class="n">${b.n}</td><td class="n">${b.r}</td><td class="n">${b.y}</td>
-    <td class="n">${b.med!==null?b.med:'\u2013'}</td></tr>`;
+    <td class="n">${b.med!==null?b.med.toFixed(1):'\u2013'}</td></tr>`;
 }).join('');
 $('#tbody').addEventListener('click',e=>{const tr=e.target.closest('tr[data-i]');if(tr)flyTo(D.blocks[+tr.dataset.i],4);});
 </script>
