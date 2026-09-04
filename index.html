@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Rats of Lakeview</title>
+<meta name="description" content="Every rodent complaint filed with Chicago 311 in Lakeview's 44th Ward since 2019, mapped by block.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,200;0,6..72,300;0,6..72,400;1,6..72,300&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#E6ECEF;
+  --paper:#F4F8FA;
+  --ink:#132430;
+  --slate:#56707E;
+  --faint:#9BB0BC;
+  --rule:#C3D1D9;
+  --hot:#BE1E3C;
+  --warm:#D98C24;
+  --cool:#3F7E9C;
+  --lake:#D3E2E8;
+  --gut:30px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;overflow-x:hidden;background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-left:var(--gut);padding-right:var(--gut)}
+h1,h2,h3{font-family:"Newsreader",Georgia,serif;font-weight:300;letter-spacing:-.012em;line-height:1.08;margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--slate)}
+
+/* masthead */
+.mast{padding-top:52px;padding-bottom:28px}
+h1{font-size:clamp(40px,6.6vw,74px)}
+h1 em{font-style:italic;font-weight:300}
+.dek{font-family:"Newsreader",serif;font-weight:300;font-size:clamp(16px,2vw,20px);color:var(--slate);
+  max-width:56ch;margin:16px 0 0;line-height:1.5}
+.mastline{display:flex;gap:14px 30px;flex-wrap:wrap;align-items:baseline;border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);padding:16px 0;margin-top:30px}
+.mastline b{font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:13px}
+.mastline span{font-size:12px;color:var(--slate);font-family:"IBM Plex Mono",monospace;letter-spacing:.04em}
+
+/* ---- MAP ---- */
+.mapblock{padding-top:24px}
+.mapbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.search{position:relative;flex:1;min-width:230px;max-width:340px}
+.search input{width:100%;font-family:"IBM Plex Mono",monospace;font-size:12.5px;padding:9px 12px;
+  border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:0}
+.search input:focus{outline:2px solid var(--cool);outline-offset:-1px;border-color:var(--cool)}
+.sugg{position:absolute;top:100%;left:0;right:0;background:var(--paper);border:1px solid var(--ink);
+  border-top:0;z-index:40;max-height:230px;overflow:auto;display:none}
+.sugg button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--rule);
+  padding:8px 12px;font-family:"IBM Plex Mono",monospace;font-size:12px;cursor:pointer;color:var(--ink)}
+.sugg button:hover,.sugg button:focus{background:var(--ground);outline:none}
+.sugg button i{font-style:normal;color:var(--slate);float:right}
+.btn{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  background:transparent;border:1px solid var(--rule);color:var(--slate);padding:8px 13px;cursor:pointer}
+.btn:hover{border-color:var(--ink);color:var(--ink)}
+.btn[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.btn:focus-visible{outline:2px solid var(--cool);outline-offset:2px}
+.mapframe{position:relative;border:1px solid var(--ink);background:var(--paper);overflow:hidden;
+  height:min(70vh,660px);min-height:420px;cursor:grab;touch-action:none}
+.mapframe.drag{cursor:grabbing}
+#svg{display:block;width:100%;height:100%}
+.streetline{stroke:#C9D6DD;fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.streetline.major{stroke:#A6BAC5}
+.stlabel text{font-family:"IBM Plex Mono",monospace;font-size:1em;fill:#8AA0AC;letter-spacing:.1em}
+.stlabel{font-size:8.2px}
+.blk{cursor:pointer}
+.blk circle{stroke:#F4F8FA;stroke-opacity:.85;paint-order:stroke;vector-effect:non-scaling-stroke}
+.blk.dim circle{opacity:.12}
+.blk.hi circle{stroke:var(--ink);stroke-opacity:1;stroke-width:2;vector-effect:non-scaling-stroke}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);padding:9px 11px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.5;z-index:60;opacity:0;
+  transition:opacity .09s;max-width:250px;letter-spacing:.01em}
+.tip b{display:block;font-weight:500;letter-spacing:.05em;margin-bottom:4px;color:#fff}
+.tip s{text-decoration:none;color:var(--faint)}
+.mapctl{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:5px;z-index:30}
+.mapctl button{width:31px;height:31px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Mono",monospace;font-size:14px;cursor:pointer;line-height:1;padding:0}
+.mapctl button:hover{border-color:var(--ink)}
+.mapkey{position:absolute;left:12px;bottom:12px;background:rgba(244,248,250,.9);border:1px solid var(--rule);
+  padding:9px 12px;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--slate);letter-spacing:.05em;z-index:30}
+.mapkey b{display:block;font-weight:500;color:var(--ink);margin-bottom:5px;letter-spacing:.1em;font-size:9.5px}
+.mapkey u{text-decoration:none;display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+
+
+/* timeline */
+.tl{border:1px solid var(--ink);border-top:0;background:var(--paper);padding:14px 16px 12px}
+.tlhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:9px}
+.tlhead .now{font-family:"Newsreader",serif;font-size:21px;font-weight:300;min-width:150px}
+.tlhead .cnt{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--slate);letter-spacing:.05em}
+.play{width:34px;height:34px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;
+  font-size:12px;line-height:1;padding:0;flex:none}
+.play:hover{background:var(--hot);border-color:var(--hot)}
+.spark{position:relative;height:52px;cursor:crosshair}
+.spark svg{display:block;width:100%;height:100%}
+.spark .win{fill:rgba(190,30,60,.13)}
+.spark .bars{fill:var(--slate);opacity:.55}
+.spark .cur{stroke:var(--hot);stroke-width:1}
+.tlaxis{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:9.5px;
+  color:var(--faint);letter-spacing:.1em;padding-top:5px;border-top:1px solid var(--rule);margin-top:2px}
+.tlnote{font-size:12.5px;color:var(--slate);margin:10px 0 0;line-height:1.45}
+
+section{padding:62px 0}
+.sechead{border-bottom:1px solid var(--rule);padding-bottom:13px;margin-bottom:28px;
+  display:flex;align-items:baseline;gap:20px;flex-wrap:wrap}
+.sechead h2{font-size:clamp(24px,3.2vw,36px)}
+.sechead p{margin:0;color:var(--slate);font-size:14px;max-width:44ch;line-height:1.5}
+
+/* offenders */
+.offs{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.off{background:var(--ground);padding:20px 18px 18px;display:flex;flex-direction:column;gap:0}
+.off .r{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--faint);letter-spacing:.14em}
+.off .n{font-family:"Newsreader",serif;font-weight:200;font-size:46px;line-height:1;margin:10px 0 2px;color:var(--hot)}
+.off .u{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--slate);letter-spacing:.11em;text-transform:uppercase}
+.off .a{font-family:"IBM Plex Sans",sans-serif;font-size:14.5px;line-height:1.3;margin:15px 0 4px}
+.off .m{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--slate);line-height:1.65;margin-bottom:16px}
+.off a{margin-top:auto;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink);text-decoration:none;border-bottom:1px solid var(--hot);padding-bottom:3px;align-self:flex-start}
+.off a:hover{color:var(--hot)}
+
+/* concentration */
+.concbar{display:flex;height:52px;border:1px solid var(--ink);overflow:hidden}
+.concbar div{display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;
+  font-size:11px;color:#fff;letter-spacing:.05em;cursor:default;transition:filter .12s}
+.concbar div:hover{filter:brightness(1.14)}
+.conclegend{display:flex;flex-wrap:wrap;gap:20px;margin-top:13px;font-size:12.5px;color:var(--slate);
+  font-family:"IBM Plex Mono",monospace;letter-spacing:.02em}
+.conclegend u{text-decoration:none;display:inline-block;width:9px;height:9px;margin-right:7px}
+
+/* charts */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:52px}
+.hbars{margin-top:16px;display:flex;flex-direction:column;gap:1px}
+.hb{display:grid;grid-template-columns:1fr 62px;gap:12px;align-items:center;padding:7px 0;
+  border-bottom:1px solid var(--rule);cursor:default}
+.hb:hover .track i{filter:brightness(1.15)}
+.hb .lb{font-size:13px;line-height:1.35}
+.hb .track{grid-column:1/-1;height:7px;background:rgba(19,36,48,.07);position:relative;margin-top:2px}
+.hb .track i{position:absolute;left:0;top:0;bottom:0;background:var(--cool);transition:filter .12s}
+.hb .track i.lead{background:var(--hot)}
+.hb .v{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--slate);text-align:right}
+.note.wide{max-width:70ch;border-top:1px solid var(--rule);padding-top:20px;margin-top:38px}
+.chart{position:relative}
+.axmax{font-size:10px;color:var(--faint);letter-spacing:.09em;text-align:right;margin-bottom:5px}
+.bars{display:flex;align-items:flex-end;gap:5px;height:180px;border-bottom:1px solid var(--ink)}
+.bars div{flex:1;background:var(--cool);min-height:2px;cursor:pointer;transition:background .12s}
+.bars div:hover{background:var(--hot)}
+.bars div.peak{background:#132430}
+.axlbl{display:flex;gap:5px;margin-top:8px}
+.axlbl span{flex:1;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--faint)}
+.linewrap{position:relative;height:180px;border-bottom:1px solid var(--ink)}
+.linewrap svg{position:absolute;inset:0;width:100%;height:100%}
+.linewrap .hit{position:absolute;top:0;bottom:0;cursor:pointer}
+.linewrap .pt{position:absolute;width:8px;height:8px;background:var(--ink);border-radius:50%;
+  transform:translate(-50%,50%);pointer-events:none;transition:background .12s,width .12s,height .12s}
+.linewrap .hit:hover + .pt,.linewrap .pt.on{background:var(--hot);width:12px;height:12px}
+.note{font-size:13px;color:var(--slate);margin-top:18px;line-height:1.55;max-width:44ch}
+
+/* table */
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;min-width:620px;border-collapse:collapse;font-size:13.5px}
+th{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--slate);text-align:left;border-bottom:1px solid var(--ink);padding:0 12px 10px 0;font-weight:400}
+td{padding:10px 12px 10px 0;border-bottom:1px solid var(--rule)}
+td.n,th.n{text-align:right;font-family:"IBM Plex Mono",monospace}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--paper)}
+.rk{font-family:"IBM Plex Mono",monospace;color:var(--faint);font-size:11px}
+.spk{display:inline-block;vertical-align:middle}
+
+footer{border-top:1px solid var(--ink);padding:36px 0 80px;font-size:12.5px;color:var(--slate);line-height:1.7}
+footer b{color:var(--ink);font-weight:500}
+footer a{color:var(--ink)}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:26px;top:8px;background:var(--ink);color:#fff;padding:8px 12px;z-index:99}
+
+@media(max-width:900px){
+  .offs{grid-template-columns:1fr 1fr}
+  .grid2,.two{grid-template-columns:1fr;gap:44px}
+  .mapframe{height:66vh;min-height:400px}
+}
+@media(max-width:760px){
+  :root{--gut:24px}
+  .mast{padding-top:34px;padding-bottom:24px}
+  .eyebrow{font-size:10px;letter-spacing:.11em;line-height:1.8}
+  h1 .dek,.dek{font-size:16.5px;line-height:1.55;margin-top:18px}
+  section{padding:46px 0}
+  .sechead{gap:8px;padding-bottom:14px;margin-bottom:22px}
+  .sechead p{max-width:none}
+  .note,.tlnote{max-width:none}
+  .mapblock{padding-top:18px}
+  .mapbar{gap:10px;margin-bottom:14px}
+  .search{max-width:none;flex:1 0 100%}
+  .btn{flex:1;text-align:center;padding:11px 10px}
+  .mastline{gap:12px 0;flex-direction:column;align-items:flex-start;padding:18px 0}
+  .off{padding:24px 22px}
+  .tl{padding:16px 18px 16px}
+  .mapkey{left:14px;bottom:14px}
+  footer{padding:32px 0 64px}
+}
+@media(max-width:560px){
+  .offs{grid-template-columns:1fr}
+  .tlhead .now{min-width:0;font-size:19px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#map">Skip to map</a>
+
+<div class="wrap mast">
+  <div class="eyebrow">Chicago 311 &middot; Rodent complaints &middot; Ward 44 &middot; <span id="range"></span></div>
+  <h1>The <em>Rats</em> of Lakeview</h1>
+  <p class="dek">Rats are not evenly spread across the neighborhood. They live on a short list of blocks, year after year, and the same neighbors keep calling about them. Here is that list.</p>
+  <div class="mastline" id="mastline"></div>
+</div>
+
+<div class="wrap mapblock" id="map">
+  <div class="mapbar">
+    <div class="search">
+      <input id="q" type="text" placeholder="Find your block, e.g. Roscoe" autocomplete="off" aria-label="Search for a block">
+      <div class="sugg" id="sugg" role="listbox"></div>
+    </div>
+    <button class="btn" id="mAll" aria-pressed="true">All time</button>
+    <button class="btn" id="mWin" aria-pressed="false">Timeline</button>
+    <button class="btn" id="mReset">Reset view</button>
+  </div>
+
+  <div class="mapframe" id="frame">
+    <svg id="svg" role="img" aria-label="Map of rat complaints by block in Lakeview"></svg>
+    <div class="mapctl">
+      <button id="zIn" aria-label="Zoom in">+</button>
+      <button id="zOut" aria-label="Zoom out">&minus;</button>
+    </div>
+    <div class="mapkey">
+      <b>Reports per block</b>
+      <u style="background:#BE1E3C;opacity:.7"></u>60+&nbsp;&nbsp;
+      <u style="background:#D98C24;opacity:.7"></u>25&ndash;59&nbsp;&nbsp;
+      <u style="background:#3F7E9C;opacity:.7"></u>under 25
+    </div>
+    <div class="tip" id="tip"></div>
+  </div>
+
+  <div class="tl">
+    <div class="tlhead">
+      <button class="play" id="play" aria-label="Play timeline">&#9654;</button>
+      <div class="now" id="tlnow">All time</div>
+      <div class="cnt" id="tlcnt"></div>
+    </div>
+    <div class="spark" id="spark"><svg id="sparksvg" preserveAspectRatio="none"></svg><div class="tip" id="tip2"></div></div>
+    <div class="tlaxis" id="tlaxis"></div>
+    <p class="tlnote">Drag the strip or press play to move a rolling 12-month window through seven years. Circles resize to that window, so blocks that flare up and go quiet are visible against the ones that never do.</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <div class="sechead">
+      <h2>The five worst blocks</h2>
+      <p>Ranked by total complaints since 2019. Street View opens at the single address on each block with the most reports.</p>
+    </div>
+    <div class="offs" id="offs"></div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <h2>What people are actually reporting</h2>
+      <p>The request type is &ldquo;Rodent Baiting/Rat Complaint.&rdquo; There is no description field. You are not filing a story, you are requesting a bait crew.</p>
+    </div>
+    <div class="two">
+      <div>
+        <div class="eyebrow">What the crew found, 2006&ndash;2018</div>
+        <div class="hbars" id="acts"></div>
+        <p class="note" id="actnote"></p>
+      </div>
+      <div>
+        <div class="eyebrow">How the ward files, 2019&ndash;2026</div>
+        <div class="hbars" id="orig"></div>
+        <p class="note" id="orignote"></p>
+      </div>
+    </div>
+    <p class="note wide" id="gapnote"></p>
+  </section>
+
+  <section>
+    <div class="grid2">
+      <div class="chart">
+        <div class="sechead"><h2>Season</h2></div>
+        <div class="axmax mono" id="mmax"></div>
+        <div class="bars" id="mbars"></div>
+        <div class="axlbl" id="mlbl"></div>
+        <p class="note">July and August run near triple the February floor. Warm nights, open patios, garbage sitting out longer.</p>
+      </div>
+      <div class="chart">
+        <div class="sechead"><h2>City response</h2></div>
+        <div class="axmax mono" id="smax"></div>
+        <div class="linewrap" id="sline"></div>
+        <div class="axlbl" id="slbl"></div>
+        <p class="note">Median days from call to closed ticket. The 2021 to 2023 backlog pushed waits past a week. Response has since come back down.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <h2>Every block, ranked</h2>
+      <p>Top thirty. Click a row to find it on the map.</p>
+    </div>
+    <div class="tscroll"><table>
+      <thead><tr><th style="width:36px"></th><th>Block</th><th style="width:120px">Since 2019</th>
+      <th class="n">All time</th><th class="n">Last 12 mo</th><th class="n">Years active</th><th class="n">Median close</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+  </section>
+
+</div>
+
+<footer><div class="wrap">
+  <b>Source.</b> City of Chicago 311 Service Requests, request type &ldquo;Rodent Baiting/Rat Complaint&rdquo;, filtered to Ward 44. Pulled from the Chicago Data Portal on August 26, 2026. This page carries its own copy of the data and its own map, so it needs no keys, no tile server and no live connection.<br>
+  <b>Where the pin lands.</b> The city geocodes these complaints to the property, not the curb, and rodent baiting happens in the yard and the alley. Across this ward the published coordinate sits a median of 19.5 metres off the street centreline, and 48% of them land more than 20 metres off, which is roughly the depth of a Chicago lot. Dropping Street View at the raw coordinate therefore lands you behind the building. Each link here is projected back onto the street and aimed at the address instead.<br>
+  <b>Method.</b> Complaints are grouped into 100-address blocks and drawn at the median coordinate of the reports on that block. The street grid is traced from the reports themselves, so only streets that have generated complaints appear. Closure time runs from created date to closed date, excluding tickets left open past a year. Duplicate flags are kept in, because a duplicate is still a neighbor who called.<br>
+  <b>Caveat.</b> This maps reports, not rats. A block with organized, persistent neighbors will look worse than a block with the same problem and nobody dialing.
+</div></footer>
+
+<script>
+const D = {"total":8258,"nblocks":330,"recent12":893,"open":50,"medclose":4.6,"first":"2019-02-27","last":"2026-08-25","nm":92,"blocks":[{"b":"800 W BUCKINGHAM PL","n":176,"r":24,"lat":41.942592,"lon":-87.651045,"med":6.0,"y":8,"f":"2019-06-10","l":"2026-08-23","ms":[[5,2],[6,1],[7,2],[8,3],[9,4],[10,2],[11,2],[12,1],[13,1],[14,1],[15,1],[16,1],[17,3],[18,5],[19,8],[20,15],[21,6],[22,2],[23,1],[26,2],[27,1],[28,1],[29,3],[30,4],[31,2],[32,2],[34,1],[38,1],[40,1],[41,3],[42,3],[43,1],[45,1],[46,2],[49,1],[50,3],[51,1],[52,1],[53,1],[54,1],[55,2],[56,2],[57,4],[58,4],[64,2],[65,1],[66,2],[67,1],[68,1],[69,4],[73,1],[74,1],[75,1],[76,2],[77,15],[78,8],[79,4],[80,5],[84,2],[85,2],[86,1],[87,1],[88,1],[89,4],[90,6],[91,2]],"top":"820 W BUCKINGHAM PL","tlat":41.942681,"tlon":-87.650226,"tn":19,"thead":359,"toff":30.1},{"b":"3500 N RETA AVE","n":146,"r":25,"lat":41.946507,"lon":-87.650393,"med":5.3,"y":8,"f":"2019-08-26","l":"2026-07-16","ms":[[7,1],[8,1],[11,1],[13,2],[17,1],[19,2],[20,1],[27,1],[28,2],[29,2],[30,3],[33,4],[34,1],[35,2],[36,1],[38,1],[41,1],[42,1],[43,3],[44,2],[45,3],[46,2],[47,3],[48,1],[49,2],[50,6],[52,2],[53,4],[54,11],[55,6],[56,7],[57,1],[62,1],[63,2],[65,3],[66,4],[67,5],[68,2],[70,3],[71,2],[72,1],[73,2],[75,2],[76,1],[77,3],[78,6],[79,4],[80,5],[81,5],[82,2],[83,1],[84,1],[85,2],[86,1],[87,3],[88,1],[89,1],[90,2]],"top":"3535 N RETA AVE","tlat":41.946509,"tlon":-87.65055,"tn":35,"thead":91,"toff":18.3},{"b":"800 W ROSCOE ST","n":129,"r":11,"lat":41.943405,"lon":-87.650838,"med":5.5,"y":8,"f":"2019-03-21","l":"2026-08-24","ms":[[2,1],[5,3],[6,4],[7,5],[10,3],[13,1],[15,1],[17,1],[18,1],[19,3],[20,5],[21,2],[22,3],[25,1],[26,3],[27,2],[28,2],[29,2],[30,1],[31,1],[32,1],[33,3],[34,6],[35,4],[36,2],[39,2],[43,1],[44,3],[45,4],[46,1],[47,1],[51,1],[52,1],[53,2],[54,2],[55,5],[56,5],[57,1],[58,2],[59,1],[60,3],[61,2],[63,1],[64,1],[65,3],[66,5],[67,3],[68,2],[69,2],[72,1],[75,1],[77,1],[80,3],[81,1],[84,1],[86,1],[87,1],[89,1],[90,2],[91,1]],"top":"820 W ROSCOE ST","tlat":41.943586,"tlon":-87.650245,"tn":18,"thead":359,"toff":26.6},{"b":"3500 N FREMONT ST","n":121,"r":22,"lat":41.94633,"lon":-87.652166,"med":5.7,"y":8,"f":"2019-03-01","l":"2026-08-23","ms":[[2,3],[3,1],[5,3],[6,2],[8,1],[9,1],[14,1],[19,2],[21,1],[23,1],[25,1],[27,1],[29,5],[30,3],[31,1],[32,2],[35,2],[38,1],[39,1],[40,4],[44,2],[46,1],[50,1],[51,1],[52,5],[53,7],[54,3],[55,2],[56,7],[57,2],[58,2],[59,2],[60,2],[61,2],[63,1],[64,1],[65,1],[66,2],[67,1],[69,3],[70,1],[75,2],[76,2],[77,2],[78,2],[79,5],[80,1],[81,2],[82,4],[85,1],[87,1],[88,6],[90,2],[91,5]],"top":"3542 N FREMONT ST","tlat":41.946736,"tlon":-87.652103,"tn":30,"thead":266,"toff":5.2},{"b":"600 W BRIAR PL","n":111,"r":29,"lat":41.938938,"lon":-87.645091,"med":7.7,"y":8,"f":"2019-03-17","l":"2026-08-20","ms":[[2,1],[3,1],[5,1],[8,2],[9,1],[10,1],[11,1],[19,4],[20,1],[26,1],[28,1],[29,2],[30,4],[31,2],[32,2],[34,1],[35,2],[36,1],[37,1],[38,1],[39,1],[41,2],[42,1],[43,1],[44,6],[45,1],[46,1],[49,1],[50,3],[51,3],[52,2],[53,4],[54,3],[55,4],[56,6],[57,2],[58,2],[64,1],[67,2],[68,1],[69,2],[70,1],[72,1],[79,1],[80,2],[81,3],[82,3],[83,2],[84,2],[85,1],[87,2],[88,2],[89,2],[90,5],[91,4]],"top":"615 W BRIAR PL","tlat":41.939036,"tlon":-87.645073,"tn":35,"thead":184,"toff":11.0},{"b":"600 W BARRY AVE","n":109,"r":8,"lat":41.93802,"lon":-87.645275,"med":10.6,"y":8,"f":"2019-07-29","l":"2026-07-15","ms":[[6,1],[10,1],[11,3],[12,5],[17,2],[18,1],[20,4],[21,1],[22,1],[23,2],[27,1],[28,1],[32,3],[33,2],[34,1],[41,1],[42,2],[43,1],[45,1],[46,1],[48,1],[49,1],[50,2],[51,1],[53,2],[54,3],[55,17],[56,12],[57,8],[58,1],[59,1],[60,1],[65,1],[66,1],[68,2],[69,1],[71,1],[73,5],[77,1],[78,2],[79,2],[82,2],[85,1],[88,2],[89,2],[90,1]],"top":"618 W BARRY AVE","tlat":41.937859,"tlon":-87.645025,"tn":15,"thead":3,"toff":23.0},{"b":"3100 N SEMINARY AVE","n":94,"r":14,"lat":41.938929,"lon":-87.656765,"med":4.5,"y":8,"f":"2019-07-18","l":"2026-08-19","ms":[[6,1],[7,1],[8,1],[17,1],[18,1],[20,1],[27,1],[31,4],[32,2],[33,1],[34,1],[38,2],[39,3],[40,4],[41,2],[42,5],[43,1],[44,2],[45,1],[46,3],[47,1],[48,3],[51,5],[52,2],[53,4],[55,2],[56,4],[57,1],[58,2],[59,1],[61,3],[64,1],[68,4],[77,2],[78,5],[79,2],[80,1],[82,3],[85,1],[87,1],[88,3],[90,1],[91,4]],"top":"3126 N SEMINARY AVE","tlat":41.938929,"tlon":-87.656585,"tn":27,"thead":270,"toff":15.6},{"b":"700 W BARRY AVE","n":85,"r":2,"lat":41.937678,"lon":-87.648138,"med":7.1,"y":8,"f":"2019-04-05","l":"2026-04-09","ms":[[3,1],[5,1],[7,1],[9,1],[12,1],[17,1],[18,1],[20,1],[21,1],[23,1],[29,1],[36,1],[39,1],[40,1],[41,3],[42,4],[43,2],[44,1],[45,1],[46,2],[48,2],[50,1],[53,6],[54,7],[55,5],[56,2],[57,4],[58,3],[59,4],[60,3],[61,1],[62,1],[63,3],[64,1],[66,2],[67,1],[68,1],[69,4],[71,1],[72,2],[75,1],[77,1],[87,2]],"top":"735 W BARRY AVE","tlat":41.937979,"tlon":-87.648149,"tn":32,"thead":183,"toff":33.5},{"b":"3500 N WILTON AVE","n":84,"r":17,"lat":41.946396,"lon":-87.652802,"med":7.1,"y":8,"f":"2019-04-04","l":"2026-08-17","ms":[[3,1],[5,1],[7,1],[8,4],[14,1],[18,2],[19,1],[20,2],[21,1],[22,1],[23,2],[25,1],[27,2],[28,1],[29,3],[30,3],[31,2],[32,3],[33,2],[37,1],[38,1],[40,2],[41,2],[42,2],[45,1],[52,2],[53,1],[54,3],[55,2],[56,4],[57,3],[60,3],[63,1],[64,1],[65,1],[66,1],[67,1],[69,1],[80,4],[81,3],[83,1],[87,3],[89,2],[90,3],[91,1]],"top":"3535 N WILTON AVE","tlat":41.946514,"tlon":-87.653075,"thead":87,"toff":27.3},{"b":"3800 N CLARK ST","n":83,"r":14,"lat":41.951223,"lon":-87.659969,"med":4.9,"y":8,"f":"2019-07-17","l":"2026-05-15","ms":[[6,1],[7,5],[8,4],[9,1],[10,1],[11,1],[14,1],[17,1],[20,1],[24,3],[27,1],[28,1],[31,1],[32,1],[34,1],[38,1],[41,3],[43,1],[44,1],[45,2],[46,1],[48,1],[50,1],[54,2],[55,1],[56,2],[57,1],[58,1],[60,4],[61,2],[63,2],[64,1],[66,3],[68,2],[69,3],[70,1],[72,1],[73,1],[74,2],[75,1],[76,1],[78,3],[79,1],[80,3],[81,2],[82,3],[84,1],[85,2],[87,1],[88,1]],"top":"3800 N CLARK ST","tlat":41.951179,"tlon":-87.659948,"thead":238,"toff":2.0},{"b":"1100 W NEWPORT AVE","n":80,"r":3,"lat":41.944679,"lon":-87.658767,"med":3.5,"y":8,"f":"2019-04-04","l":"2026-08-24","ms":[[3,3],[4,1],[8,1],[9,1],[10,2],[12,2],[15,1],[16,1],[19,4],[20,2],[21,2],[22,4],[23,3],[24,1],[25,1],[26,1],[27,3],[28,3],[29,3],[30,3],[31,4],[32,6],[33,1],[35,1],[36,1],[37,1],[38,1],[39,1],[41,1],[43,2],[45,1],[49,3],[51,1],[53,1],[63,1],[64,1],[65,1],[68,1],[76,1],[77,1],[78,3],[79,1],[80,1],[91,2]],"top":"1152 W NEWPORT AVE","tlat":41.944493,"tlon":-87.658769,"thead":0,"toff":31.8},{"b":"1100 W GEORGE ST","n":79,"r":8,"lat":41.934636,"lon":-87.656875,"med":3.7,"y":8,"f":"2019-03-28","l":"2026-08-07","ms":[[2,1],[4,1],[6,1],[7,1],[9,3],[13,1],[14,3],[16,1],[18,1],[23,2],[24,2],[27,2],[28,3],[29,1],[30,1],[31,1],[33,1],[34,4],[40,1],[41,1],[42,1],[43,1],[45,1],[46,1],[47,4],[48,1],[49,1],[50,3],[52,1],[53,3],[54,3],[55,3],[56,1],[57,1],[58,1],[59,1],[60,2],[62,1],[63,1],[64,1],[66,2],[67,2],[68,1],[69,1],[70,1],[80,1],[82,1],[84,1],[85,3],[90,1],[91,1]],"top":"1108 W GEORGE ST","tlat":41.93452,"tlon":-87.656838,"thead":0,"toff":14.9},{"b":"3200 N WILTON AVE","n":78,"r":12,"lat":41.940547,"lon":-87.652647,"med":4.1,"y":8,"f":"2019-08-12","l":"2026-08-15","ms":[[7,2],[8,4],[9,3],[10,1],[11,1],[18,2],[19,2],[21,1],[23,1],[26,1],[27,1],[29,2],[30,2],[31,1],[34,1],[40,1],[42,1],[43,1],[44,2],[50,1],[54,1],[56,1],[57,2],[58,1],[60,1],[61,1],[62,1],[63,2],[64,3],[65,2],[66,3],[67,2],[68,1],[70,2],[72,3],[73,1],[74,2],[75,1],[77,2],[78,3],[79,1],[80,1],[81,1],[82,1],[83,1],[89,3],[90,3],[91,1]],"top":"3260 N WILTON AVE"},{"b":"600 W SURF ST","n":77,"r":2,"lat":41.934657,"lon":-87.64573,"med":7.4,"y":8,"f":"2019-06-26","l":"2026-08-06","ms":[[5,1],[16,2],[21,1],[29,2],[30,3],[31,4],[32,4],[34,4],[35,1],[38,6],[39,1],[40,2],[41,4],[42,2],[43,3],[44,1],[45,2],[46,3],[47,1],[48,1],[49,1],[52,1],[53,2],[55,1],[56,3],[57,4],[58,1],[59,1],[63,3],[64,1],[67,2],[68,1],[69,1],[73,1],[74,1],[75,1],[76,1],[77,1],[80,1],[91,1]],"top":"637 W SURF ST"},{"b":"900 W BARRY AVE","n":77,"r":10,"lat":41.938335,"lon":-87.652054,"med":6.0,"y":8,"f":"2019-04-16","l":"2026-08-16","ms":[[3,2],[14,1],[17,3],[18,1],[19,1],[27,1],[29,2],[33,1],[39,1],[40,1],[41,3],[42,6],[44,1],[45,4],[52,2],[53,5],[54,4],[55,2],[56,1],[57,5],[61,1],[62,2],[64,1],[65,2],[66,1],[67,1],[68,2],[72,1],[73,2],[74,2],[76,2],[78,1],[79,2],[85,1],[86,1],[87,1],[88,1],[89,2],[90,2],[91,2]],"top":"906 W BARRY AVE"},{"b":"3200 N CLIFTON AVE","n":76,"r":3,"lat":41.940678,"lon":-87.65757,"med":5.1,"y":7,"f":"2019-03-07","l":"2025-11-18","ms":[[2,2],[3,2],[5,1],[6,3],[7,6],[8,2],[9,1],[13,1],[16,3],[17,1],[18,1],[19,1],[21,1],[23,2],[24,1],[28,3],[29,4],[30,1],[31,1],[32,1],[33,1],[34,2],[39,1],[40,2],[42,3],[43,2],[46,1],[47,1],[48,1],[51,1],[55,4],[56,2],[57,2],[58,1],[59,1],[63,1],[67,2],[70,2],[72,2],[73,2],[79,2],[80,1],[82,1]],"top":"3213 N CLIFTON AVE"},{"b":"900 W NEWPORT AVE","n":74,"r":7,"lat":41.944296,"lon":-87.652562,"med":4.6,"y":8,"f":"2019-03-25","l":"2026-08-20","ms":[[2,2],[3,1],[7,1],[8,1],[9,2],[16,3],[17,1],[18,2],[19,1],[20,4],[23,1],[24,2],[26,4],[27,1],[28,1],[29,2],[30,1],[31,2],[33,1],[34,1],[39,1],[40,1],[44,1],[48,2],[50,1],[51,1],[53,1],[54,1],[55,1],[56,2],[58,1],[60,2],[61,1],[63,1],[64,2],[67,1],[68,11],[74,1],[75,1],[80,2],[81,2],[87,1],[88,1],[91,1]],"top":"905 W NEWPORT AVE"},{"b":"3300 N KENMORE AVE","n":73,"r":0,"lat":41.94275,"lon":-87.655149,"med":4.0,"y":7,"f":"2019-03-18","l":"2025-05-24","ms":[[2,2],[3,5],[4,2],[5,1],[6,1],[7,2],[8,5],[9,3],[10,1],[11,1],[12,6],[14,1],[15,3],[16,1],[17,2],[18,1],[19,2],[20,4],[21,4],[22,2],[27,5],[28,1],[29,2],[33,1],[43,1],[46,1],[48,1],[53,2],[54,1],[66,2],[67,3],[68,2],[69,1],[76,1]],"top":"3327 N KENMORE AVE"},{"b":"1000 W WELLINGTON AVE","n":73,"r":5,"lat":41.936449,"lon":-87.654522,"med":3.1,"y":8,"f":"2019-07-10","l":"2026-07-08","ms":[[6,4],[8,1],[9,1],[17,2],[18,1],[19,1],[20,2],[22,2],[23,2],[24,2],[28,2],[29,3],[30,3],[31,1],[32,4],[34,1],[35,1],[36,1],[40,1],[41,5],[42,5],[44,3],[45,4],[46,2],[48,1],[51,1],[52,1],[53,2],[58,1],[62,1],[64,1],[65,1],[67,1],[69,2],[76,1],[79,1],[80,3],[84,1],[90,1]],"top":"1010 W WELLINGTON AVE"},{"b":"3700 N KENMORE AVE","n":73,"r":1,"lat":41.950417,"lon":-87.655334,"med":3.2,"y":8,"f":"2019-12-04","l":"2026-08-25","ms":[[11,1],[12,2],[13,3],[14,1],[18,3],[19,4],[20,1],[22,2],[23,1],[27,2],[29,3],[30,3],[31,1],[32,2],[33,3],[34,2],[38,1],[39,1],[40,1],[41,2],[42,2],[43,2],[48,1],[49,4],[50,1],[51,1],[52,7],[53,1],[56,3],[57,1],[64,1],[65,1],[74,2],[75,2],[76,1],[78,1],[79,2],[91,1]],"top":"3759 N KENMORE AVE"},{"b":"3200 N KENMORE AVE","n":73,"r":2,"lat":41.941044,"lon":-87.655074,"med":3.6,"y":8,"f":"2019-03-12","l":"2026-02-10","ms":[[2,1],[3,2],[4,5],[5,1],[6,1],[7,1],[9,4],[10,2],[11,2],[13,1],[14,4],[15,1],[16,2],[17,2],[18,3],[19,2],[20,3],[21,3],[22,3],[23,1],[29,2],[33,1],[39,1],[41,2],[42,1],[43,3],[44,1],[50,1],[53,1],[55,1],[56,3],[57,1],[61,1],[63,1],[64,1],[65,1],[66,2],[67,1],[69,1],[74,1],[84,1],[85,1]],"top":"3243 N KENMORE AVE"},{"b":"3300 N SOUTHPORT AVE","n":72,"r":7,"lat":41.94222,"lon":-87.664148,"med":4.9,"y":8,"f":"2019-03-31","l":"2026-06-25","ms":[[2,1],[3,2],[4,4],[5,3],[6,2],[8,4],[9,1],[16,7],[17,2],[18,1],[20,1],[24,1],[28,1],[29,3],[30,3],[31,1],[32,1],[34,1],[35,1],[39,1],[43,1],[50,1],[53,2],[59,1],[61,1],[62,2],[64,1],[68,1],[69,1],[70,2],[71,2],[72,1],[73,1],[75,1],[76,1],[77,2],[78,3],[80,3],[87,3],[89,1]],"top":"3312 N SOUTHPORT AVE"},{"b":"3200 N SEMINARY AVE","n":70,"r":7,"lat":41.941108,"lon":-87.656835,"med":3.9,"y":8,"f":"2019-08-29","l":"2026-06-19","ms":[[7,2],[8,2],[9,1],[10,3],[11,1],[12,1],[17,1],[18,1],[21,2],[22,5],[23,3],[26,2],[27,4],[28,2],[29,3],[30,1],[31,3],[32,5],[33,1],[34,1],[35,4],[36,2],[37,1],[41,1],[43,1],[44,1],[49,1],[50,1],[53,1],[57,1],[66,1],[68,1],[72,1],[77,2],[81,3],[84,1],[86,1],[87,1],[89,1]],"top":"3240 N SEMINARY AVE"},{"b":"3300 N SHEFFIELD AVE","n":70,"r":6,"lat":41.942796,"lon":-87.654334,"med":4.6,"y":8,"f":"2019-03-25","l":"2026-08-02","ms":[[2,1],[6,1],[7,2],[8,4],[9,2],[10,2],[11,2],[12,3],[13,1],[17,1],[18,3],[19,2],[21,1],[22,1],[27,2],[30,3],[32,2],[38,1],[40,1],[41,4],[42,2],[43,1],[44,1],[51,1],[53,1],[54,1],[56,1],[57,2],[61,4],[62,1],[66,1],[69,2],[70,3],[71,2],[73,1],[77,1],[80,1],[85,1],[86,1],[88,1],[90,1],[91,1]],"top":"3343 N SHEFFIELD AVE"},{"b":"3800 N LAKEWOOD AVE","n":70,"r":31,"lat":41.951832,"lon":-87.661431,"med":3.9,"y":8,"f":"2019-07-01","l":"2026-08-23","ms":[[6,1],[7,1],[11,1],[22,1],[26,1],[27,1],[28,2],[29,1],[38,1],[53,1],[54,2],[55,2],[56,3],[58,1],[64,1],[67,2],[71,1],[72,1],[76,2],[77,4],[78,3],[79,6],[80,2],[81,3],[82,3],[83,2],[84,1],[85,2],[86,2],[87,2],[88,4],[89,5],[90,2],[91,3]],"top":"3851 N LAKEWOOD AVE"},{"b":"2900 N SHERIDAN RD","n":69,"r":0,"lat":41.936377,"lon":-87.639171,"med":1.2,"y":7,"f":"2019-05-02","l":"2025-06-16","ms":[[4,4],[6,1],[14,1],[15,4],[16,3],[17,2],[18,4],[19,2],[20,2],[21,2],[23,2],[24,1],[25,1],[26,2],[30,1],[31,1],[32,1],[33,1],[34,2],[35,3],[42,4],[45,1],[47,2],[48,1],[50,4],[51,2],[55,2],[59,3],[63,1],[64,1],[65,2],[66,1],[67,1],[70,1],[72,1],[74,1],[77,1]],"top":"2969 N SHERIDAN RD"},{"b":"3700 N LAKEWOOD AVE","n":68,"r":4,"lat":41.94969,"lon":-87.661634,"med":3.1,"y":8,"f":"2019-05-17","l":"2026-06-03","ms":[[4,2],[5,3],[6,1],[9,2],[12,1],[14,1],[15,1],[16,1],[17,3],[18,1],[19,7],[20,3],[22,2],[23,1],[24,1],[26,2],[27,1],[28,1],[29,2],[30,1],[38,1],[40,1],[42,1],[43,1],[48,1],[52,1],[56,2],[57,3],[63,2],[64,3],[66,1],[68,1],[69,2],[75,2],[76,1],[77,2],[78,1],[79,2],[82,2],[89,1]],"top":"3722 N LAKEWOOD AVE"},{"b":"3100 N KENMORE AVE","n":64,"r":0,"lat":41.938956,"lon":-87.655029,"med":11.1,"y":7,"f":"2019-06-28","l":"2025-07-13","ms":[[5,1],[6,1],[13,1],[18,1],[19,1],[20,4],[21,1],[27,1],[29,3],[31,4],[32,3],[33,1],[34,1],[35,1],[38,1],[40,2],[41,2],[42,2],[43,3],[44,1],[45,1],[46,2],[48,1],[49,2],[51,1],[54,1],[55,1],[56,4],[57,2],[58,4],[60,1],[61,1],[62,1],[63,2],[67,1],[70,2],[77,1],[78,1]],"top":"3127 N KENMORE AVE"},{"b":"700 W MELROSE ST","n":64,"r":3,"lat":41.940876,"lon":-87.648523,"med":3.0,"y":8,"f":"2019-04-24","l":"2026-06-07","ms":[[3,2],[4,2],[5,1],[6,2],[8,3],[10,2],[12,1],[13,1],[16,3],[17,1],[20,3],[21,1],[22,5],[26,1],[27,2],[28,4],[29,4],[30,2],[32,2],[33,1],[34,1],[36,1],[42,1],[43,2],[46,1],[50,1],[52,1],[53,2],[56,1],[57,1],[60,1],[67,1],[69,2],[74,1],[75,1],[84,1],[86,1],[89,1]],"top":"741 W MELROSE ST"},{"b":"1300 W HENDERSON ST","n":62,"r":20,"lat":41.942295,"lon":-87.663002,"med":2.2,"y":7,"f":"2019-04-01","l":"2026-08-19","ms":[[3,2],[6,1],[7,1],[8,1],[9,1],[12,1],[22,1],[30,1],[32,1],[34,1],[35,1],[37,1],[43,2],[47,1],[70,4],[71,4],[72,4],[74,2],[75,1],[76,1],[77,3],[78,2],[79,5],[80,4],[81,1],[84,4],[85,1],[86,4],[87,2],[88,1],[90,2],[91,1]],"top":"1337 W HENDERSON ST"},{"b":"3700 N SHEFFIELD AVE","n":60,"r":2,"lat":41.95,"lon":-87.654758,"med":4.0,"y":8,"f":"2019-08-12","l":"2026-08-24","ms":[[7,2],[8,1],[10,4],[11,2],[13,2],[16,2],[18,5],[19,5],[20,1],[22,1],[27,1],[29,2],[30,1],[31,3],[33,1],[34,1],[37,1],[43,1],[44,1],[45,1],[47,2],[48,1],[49,2],[51,2],[52,1],[53,1],[54,5],[55,1],[57,1],[63,1],[69,1],[70,1],[76,1],[90,1],[91,1]],"top":"3730 N SHEFFIELD AVE"},{"b":"800 W NEWPORT AVE","n":60,"r":11,"lat":41.944383,"lon":-87.650829,"med":5.9,"y":8,"f":"2019-04-18","l":"2026-08-17","ms":[[3,1],[6,1],[7,2],[8,2],[10,1],[20,1],[21,1],[22,1],[26,1],[27,1],[30,1],[31,1],[33,1],[40,1],[42,2],[43,1],[53,1],[54,1],[55,1],[57,5],[66,1],[67,2],[68,1],[71,3],[74,3],[75,1],[77,1],[78,7],[79,4],[80,1],[81,2],[82,1],[86,1],[87,1],[90,2],[91,2]],"top":"834 W NEWPORT AVE"},{"b":"400 W BRIAR PL","n":59,"r":5,"lat":41.938974,"lon":-87.641865,"med":3.5,"y":8,"f":"2019-03-27","l":"2026-08-16","ms":[[2,1],[3,1],[5,1],[7,1],[9,1],[18,2],[27,1],[30,1],[31,3],[34,1],[35,1],[37,1],[43,1],[54,1],[56,2],[57,3],[58,3],[59,3],[60,5],[61,2],[62,3],[63,1],[64,1],[65,4],[66,2],[67,2],[69,1],[70,4],[72,1],[83,1],[88,2],[91,2]],"top":"458 W BRIAR PL"},{"b":"600 W BELMONT AVE","n":59,"r":5,"lat":41.939811,"lon":-87.646208,"med":3.0,"y":8,"f":"2019-08-01","l":"2026-08-15","ms":[[7,2],[8,2],[11,4],[14,1],[16,2],[18,2],[19,2],[20,1],[31,1],[33,1],[34,2],[35,1],[36,2],[37,2],[38,1],[39,1],[40,3],[42,2],[45,2],[46,1],[47,1],[48,1],[49,2],[51,2],[52,1],[54,1],[55,1],[56,1],[57,1],[64,1],[66,1],[67,2],[68,1],[77,1],[79,2],[80,1],[82,1],[85,1],[91,2]],"top":"649 W BELMONT AVE"},{"b":"700 W CORNELIA AVE","n":59,"r":8,"lat":41.945292,"lon":-87.648917,"med":2.8,"y":7,"f":"2019-03-27","l":"2026-07-16","ms":[[2,1],[3,1],[4,2],[5,2],[6,2],[7,1],[8,3],[9,2],[24,1],[26,2],[31,1],[33,1],[42,1],[44,1],[51,2],[52,1],[53,1],[54,3],[56,2],[57,1],[60,4],[62,2],[63,1],[64,2],[67,1],[70,1],[74,1],[75,1],[76,4],[77,1],[78,2],[79,1],[80,2],[86,1],[88,2],[89,1],[90,1]],"top":"749 W CORNELIA AVE"},{"b":"3200 N RACINE AVE","n":58,"r":0,"lat":41.941197,"lon":-87.659256,"med":4.3,"y":5,"f":"2019-07-24","l":"2023-09-20","ms":[[6,1],[7,2],[8,1],[12,1],[14,1],[15,1],[16,1],[17,4],[19,1],[20,1],[23,1],[26,4],[27,2],[28,2],[29,3],[30,5],[31,2],[32,2],[33,1],[34,2],[35,1],[36,2],[39,2],[42,1],[44,1],[46,1],[50,2],[51,1],[52,4],[53,2],[54,1],[56,2]],"top":"3244 N RACINE AVE"},{"b":"600 W WELLINGTON AVE","n":58,"r":6,"lat":41.936299,"lon":-87.645847,"med":9.7,"y":8,"f":"2019-08-04","l":"2026-08-18","ms":[[7,1],[23,1],[28,2],[29,3],[30,4],[31,1],[32,3],[33,1],[35,1],[36,1],[37,2],[41,1],[42,1],[44,1],[46,1],[50,1],[51,1],[53,1],[54,2],[55,1],[56,7],[57,2],[61,1],[63,1],[65,1],[67,1],[68,2],[69,2],[70,1],[71,1],[73,1],[78,2],[79,1],[80,1],[90,2],[91,2]],"top":"626 W WELLINGTON AVE"},{"b":"3200 N SOUTHPORT AVE","n":57,"r":1,"lat":41.941008,"lon":-87.664145,"med":4.2,"y":8,"f":"2019-04-17","l":"2026-04-17","ms":[[3,1],[5,2],[6,2],[7,1],[10,1],[11,1],[14,1],[15,1],[16,2],[17,3],[18,3],[19,1],[20,5],[21,1],[22,2],[23,2],[26,5],[27,3],[28,2],[29,2],[30,1],[32,1],[41,1],[53,2],[54,1],[62,1],[71,2],[77,4],[79,2],[87,1]],"top":"3217 N SOUTHPORT AVE"},{"b":"1100 W WOLFRAM ST","n":56,"r":5,"lat":41.933668,"lon":-87.65778,"med":5.1,"y":8,"f":"2019-06-05","l":"2026-08-20","ms":[[5,1],[8,2],[10,1],[13,1],[16,2],[19,1],[20,1],[22,4],[23,4],[24,1],[27,1],[28,3],[29,3],[30,4],[31,1],[33,2],[42,2],[43,1],[44,3],[52,1],[54,1],[58,1],[60,1],[64,1],[65,1],[66,3],[68,1],[70,1],[73,1],[78,1],[86,1],[87,1],[88,1],[91,2]],"top":"1142 W WOLFRAM ST"},{"b":"900 W FLETCHER ST","n":56,"r":1,"lat":41.939066,"lon":-87.652818,"med":4.4,"y":7,"f":"2019-04-23","l":"2026-04-19","ms":[[3,1],[4,1],[5,3],[6,1],[7,2],[8,4],[14,1],[15,2],[16,1],[18,1],[24,1],[25,1],[26,1],[29,2],[30,3],[31,3],[33,1],[35,1],[36,1],[38,1],[40,3],[41,1],[42,2],[43,1],[51,1],[52,2],[54,2],[56,1],[57,2],[58,1],[72,1],[75,1],[76,1],[77,1],[78,2],[79,1],[87,1]],"top":"932 W FLETCHER ST"},{"b":"3100 N CLIFTON AVE","n":55,"r":3,"lat":41.938837,"lon":-87.657953,"med":5.1,"y":8,"f":"2019-03-29","l":"2026-07-16","ms":[[2,1],[4,2],[6,2],[8,3],[10,1],[11,2],[16,1],[17,1],[19,4],[20,1],[24,1],[26,7],[28,1],[29,5],[30,4],[31,2],[33,2],[39,1],[40,1],[41,1],[43,2],[44,1],[45,1],[55,2],[60,1],[61,2],[81,2],[90,1]],"top":"3122 N CLIFTON AVE"},{"b":"3700 N JANSSEN AVE","n":55,"r":3,"lat":41.949684,"lon":-87.665053,"med":7.8,"y":8,"f":"2019-04-12","l":"2026-08-17","ms":[[3,1],[4,1],[6,1],[14,1],[18,2],[20,2],[21,2],[29,3],[30,1],[31,1],[32,2],[33,5],[34,1],[38,1],[39,2],[43,1],[51,1],[53,1],[54,1],[55,2],[61,1],[64,1],[65,1],[66,1],[67,2],[68,2],[69,4],[70,2],[71,1],[72,1],[73,1],[78,1],[79,2],[80,1],[90,1],[91,1]],"top":"3727 N JANSSEN AVE"},{"b":"1000 W OAKDALE AVE","n":55,"r":13,"lat":41.935554,"lon":-87.655478,"med":7.3,"y":8,"f":"2019-06-29","l":"2026-08-08","ms":[[5,1],[6,1],[7,1],[8,1],[12,1],[17,1],[20,1],[21,1],[23,1],[26,1],[30,1],[31,4],[32,2],[33,1],[41,2],[42,1],[43,2],[45,2],[46,1],[52,1],[56,1],[57,1],[60,2],[61,1],[65,1],[66,1],[67,5],[69,1],[74,1],[79,1],[80,2],[81,1],[82,1],[83,1],[86,2],[87,1],[88,1],[90,2],[91,2]],"top":"1038 W OAKDALE AVE"},{"b":"600 W OAKDALE AVE","n":54,"r":4,"lat":41.935806,"lon":-87.645115,"med":4.1,"y":7,"f":"2019-05-22","l":"2026-06-06","ms":[[4,1],[5,1],[9,1],[29,1],[30,3],[31,1],[33,3],[35,3],[37,1],[38,2],[40,11],[41,1],[42,4],[43,1],[44,1],[45,1],[55,2],[56,1],[57,2],[63,1],[66,1],[71,1],[72,1],[73,1],[75,2],[76,1],[78,1],[81,1],[85,1],[87,1],[89,1]],"top":"614 W OAKDALE AVE"},{"b":"3100 N CAMBRIDGE AVE","n":54,"r":21,"lat":41.939388,"lon":-87.643404,"med":3.3,"y":8,"f":"2019-04-01","l":"2026-08-12","ms":[[3,1],[5,1],[6,1],[13,1],[27,1],[30,1],[34,1],[39,1],[41,2],[44,2],[45,1],[53,1],[54,1],[58,1],[60,1],[61,1],[62,1],[66,2],[67,2],[69,1],[71,2],[72,1],[74,2],[76,1],[77,1],[78,1],[79,2],[81,2],[82,1],[83,1],[85,1],[86,2],[87,1],[88,5],[89,1],[90,3],[91,3]],"top":"3160 N CAMBRIDGE AVE"},{"b":"1100 W OAKDALE AVE","n":54,"r":8,"lat":41.935275,"lon":-87.657355,"med":2.9,"y":8,"f":"2019-06-07","l":"2026-07-08","ms":[[5,1],[8,2],[13,1],[14,1],[15,2],[18,1],[20,2],[21,1],[22,1],[23,1],[27,7],[28,3],[29,3],[30,1],[31,3],[32,2],[33,1],[35,2],[37,2],[42,2],[55,1],[56,1],[57,1],[58,1],[67,1],[75,1],[77,1],[85,1],[87,1],[89,2],[90,4]],"top":"1124 W OAKDALE AVE"},{"b":"3700 N WAYNE AVE","n":54,"r":7,"lat":41.950266,"lon":-87.662627,"med":3.9,"y":8,"f":"2019-03-19","l":"2026-05-29","ms":[[2,1],[19,1],[20,1],[21,2],[27,1],[29,3],[30,2],[31,1],[32,1],[34,1],[40,1],[45,1],[47,1],[48,1],[52,2],[53,1],[56,1],[57,2],[58,1],[60,2],[61,1],[62,1],[68,2],[69,3],[70,3],[72,1],[74,2],[76,4],[77,1],[79,3],[81,1],[82,1],[84,1],[85,2],[88,1]],"top":"3745 N WAYNE AVE"},{"b":"3300 N CLIFTON AVE","n":52,"r":1,"lat":41.942311,"lon":-87.658079,"med":5.6,"y":8,"f":"2019-06-10","l":"2026-01-09","ms":[[5,1],[8,3],[9,3],[12,1],[15,2],[17,1],[18,1],[19,2],[20,1],[32,3],[33,1],[34,2],[39,2],[40,2],[41,1],[43,3],[44,1],[45,1],[46,4],[47,1],[53,1],[57,1],[58,1],[60,2],[62,1],[64,1],[66,1],[67,2],[68,1],[69,2],[76,1],[79,1],[84,1]],"top":"3308 N CLIFTON AVE"},{"b":"800 W ALDINE AVE","n":52,"r":17,"lat":41.942005,"lon":-87.651212,"med":5.0,"y":8,"f":"2019-06-07","l":"2026-08-22","ms":[[5,1],[8,1],[9,1],[11,1],[12,1],[18,1],[19,1],[20,2],[21,3],[22,1],[23,1],[24,1],[27,1],[28,1],[29,1],[32,1],[41,1],[42,2],[43,2],[44,1],[50,2],[51,1],[54,2],[56,1],[57,1],[66,1],[68,1],[72,1],[81,1],[82,2],[83,1],[85,1],[86,1],[87,2],[88,2],[89,1],[90,3],[91,3]],"top":"846 W ALDINE AVE"},{"b":"3400 N BOSWORTH AVE","n":51,"r":0,"lat":41.944394,"lon":-87.667876,"med":4.0,"y":4,"f":"2019-04-08","l":"2022-10-23","ms":[[3,1],[4,1],[8,1],[11,1],[13,1],[15,1],[16,1],[17,2],[18,2],[19,2],[21,1],[22,1],[23,1],[24,1],[25,1],[27,5],[28,1],[29,3],[30,5],[31,4],[33,1],[34,1],[35,1],[38,1],[39,5],[40,1],[42,3],[44,1],[45,1]],"top":"3432 N BOSWORTH AVE"},{"b":"3800 N SOUTHPORT AVE","n":50,"r":12,"lat":41.951885,"lon":-87.663843,"med":4.2,"y":8,"f":"2019-07-03","l":"2026-08-06","ms":[[6,1],[7,4],[9,1],[17,2],[19,1],[23,1],[26,2],[27,2],[28,1],[29,1],[32,1],[35,2],[42,2],[53,2],[56,1],[57,1],[60,1],[64,2],[66,2],[67,1],[68,2],[75,1],[76,1],[77,1],[78,2],[80,4],[81,2],[82,1],[83,3],[91,2]],"top":"3841 N SOUTHPORT AVE"},{"b":"600 W ROSCOE ST","n":50,"r":1,"lat":41.94379,"lon":-87.646509,"med":2.5,"y":8,"f":"2019-06-14","l":"2026-03-08","ms":[[5,2],[6,3],[8,2],[9,3],[14,1],[19,4],[20,1],[21,2],[28,2],[30,1],[33,1],[37,3],[38,2],[39,2],[40,1],[43,2],[45,1],[48,4],[50,2],[51,1],[53,1],[55,1],[56,1],[63,1],[64,1],[69,1],[74,1],[76,2],[86,1]],"top":"644 W ROSCOE ST"},{"b":"500 W BRIAR PL","n":50,"r":8,"lat":41.938579,"lon":-87.64338,"med":5.7,"y":8,"f":"2019-04-01","l":"2026-08-12","ms":[[3,1],[5,3],[6,1],[20,1],[26,1],[30,2],[36,1],[40,1],[41,6],[42,1],[44,3],[45,1],[46,1],[47,1],[52,1],[54,2],[55,1],[58,2],[59,2],[61,1],[63,1],[68,1],[69,1],[72,1],[73,3],[74,1],[76,1],[81,1],[85,1],[88,3],[90,1],[91,2]],"top":"544 W BRIAR PL"},{"b":"1100 W ADDISON ST","n":49,"r":10,"lat":41.947107,"lon":-87.658358,"med":7.1,"y":8,"f":"2019-09-20","l":"2026-05-05","ms":[[8,2],[14,1],[18,1],[22,1],[24,1],[26,1],[28,1],[30,2],[31,1],[32,2],[33,5],[34,2],[35,1],[36,1],[40,1],[41,2],[42,1],[43,2],[44,2],[49,1],[51,1],[53,1],[56,3],[58,1],[61,1],[67,1],[80,2],[81,2],[82,2],[85,1],[86,1],[87,1],[88,1]],"top":"1134 W ADDISON ST"},{"b":"3500 N SHEFFIELD AVE","n":48,"r":0,"lat":41.946375,"lon":-87.654031,"med":4.6,"y":7,"f":"2019-03-01","l":"2025-06-16","ms":[[2,3],[3,1],[8,1],[11,1],[21,2],[22,1],[24,1],[25,2],[26,2],[29,1],[33,1],[39,1],[40,1],[43,2],[44,6],[47,2],[51,3],[54,1],[55,4],[57,1],[62,1],[64,1],[65,1],[66,2],[69,2],[75,1],[77,3]],"top":"3545 N SHEFFIELD AVE"},{"b":"1100 W EDDY ST","n":46,"r":0,"lat":41.946034,"lon":-87.658097,"med":4.1,"y":6,"f":"2019-06-04","l":"2024-10-13","ms":[[5,6],[7,2],[13,1],[14,1],[15,1],[16,1],[20,2],[21,4],[33,2],[34,2],[39,3],[42,2],[44,2],[45,1],[48,1],[49,1],[51,1],[53,2],[54,5],[55,3],[61,1],[62,1],[69,1]],"top":"1159 W EDDY ST"},{"b":"700 W ROSCOE ST","n":46,"r":6,"lat":41.943439,"lon":-87.648264,"med":3.0,"y":8,"f":"2019-06-10","l":"2026-04-20","ms":[[5,1],[8,1],[9,4],[10,1],[12,1],[16,1],[19,5],[20,1],[22,1],[23,1],[24,1],[26,1],[27,1],[30,1],[31,1],[32,4],[33,1],[35,1],[42,2],[50,1],[51,1],[57,1],[58,1],[67,1],[69,1],[74,2],[76,1],[79,1],[81,1],[82,2],[84,1],[86,1],[87,1]],"top":"729 W ROSCOE ST"},{"b":"1000 W NEWPORT AVE","n":46,"r":6,"lat":41.944284,"lon":-87.655622,"med":4.6,"y":7,"f":"2019-04-05","l":"2025-12-31","ms":[[3,2],[4,1],[6,2],[7,3],[8,2],[9,1],[10,3],[16,1],[18,2],[19,1],[20,1],[22,2],[26,1],[28,1],[30,1],[43,2],[48,1],[52,2],[53,1],[54,1],[55,1],[58,1],[66,1],[67,1],[73,1],[74,1],[77,1],[79,2],[80,3],[81,1],[82,1],[83,1]],"top":"1033 W NEWPORT AVE"},{"b":"3000 N SHEFFIELD AVE","n":44,"r":1,"lat":41.937459,"lon":-87.654285,"med":6.6,"y":7,"f":"2019-06-11","l":"2025-11-08","ms":[[5,2],[6,1],[7,1],[9,1],[14,1],[16,1],[23,1],[28,1],[29,1],[30,2],[31,1],[33,2],[37,1],[39,1],[40,1],[41,2],[43,1],[44,3],[48,1],[51,1],[52,5],[54,1],[55,4],[57,3],[58,2],[60,1],[79,1],[82,1]],"top":"3046 N SHEFFIELD AVE"},{"b":"3600 N WAYNE AVE","n":43,"r":3,"lat":41.948433,"lon":-87.662547,"med":5.3,"y":8,"f":"2019-05-20","l":"2026-02-17","ms":[[4,1],[5,1],[6,1],[8,1],[13,1],[15,1],[16,1],[20,1],[27,1],[31,1],[44,1],[52,2],[53,2],[54,1],[55,1],[57,2],[58,1],[59,1],[64,1],[65,3],[66,8],[67,4],[69,1],[78,2],[82,1],[84,1],[85,1]],"top":"3645 N WAYNE AVE"},{"b":"900 W ROSCOE ST","n":42,"r":3,"lat":41.943788,"lon":-87.652454,"med":5.6,"y":8,"f":"2019-04-04","l":"2026-08-20","ms":[[3,2],[5,1],[6,1],[7,1],[8,2],[9,1],[17,1],[20,2],[21,1],[22,1],[23,2],[25,1],[26,2],[28,1],[29,2],[31,1],[41,1],[42,1],[44,1],[45,2],[46,1],[47,1],[55,2],[57,1],[59,1],[66,1],[67,1],[75,1],[77,2],[78,1],[80,1],[87,1],[91,1]],"top":"917 W ROSCOE ST"},{"b":"2800 N BURLING ST","n":42,"r":2,"lat":41.934008,"lon":-87.648071,"med":5.4,"y":8,"f":"2019-08-01","l":"2026-07-25","ms":[[7,2],[9,2],[23,1],[30,1],[31,1],[32,1],[33,1],[35,1],[36,1],[38,2],[39,1],[41,1],[42,3],[44,2],[45,2],[46,3],[47,1],[48,2],[49,1],[50,2],[52,3],[53,2],[59,1],[67,1],[74,2],[89,1],[90,1]],"top":"2844 N BURLING ST"},{"b":"1200 W MELROSE ST","n":42,"r":3,"lat":41.940513,"lon":-87.66044,"med":4.4,"y":7,"f":"2019-03-29","l":"2026-08-10","ms":[[2,1],[5,1],[8,1],[10,1],[16,1],[17,1],[18,3],[19,1],[20,1],[21,1],[23,1],[26,2],[27,4],[28,1],[29,3],[31,1],[32,1],[34,1],[40,2],[44,1],[45,1],[47,1],[50,1],[53,1],[55,1],[57,1],[64,3],[69,1],[89,2],[91,1]],"top":"1235 W MELROSE ST"},{"b":"3000 N CLIFTON AVE","n":42,"r":1,"lat":41.937381,"lon":-87.657917,"med":4.0,"y":8,"f":"2019-06-11","l":"2026-05-05","ms":[[5,1],[6,8],[7,1],[8,1],[9,1],[16,1],[17,1],[18,1],[19,3],[20,2],[22,1],[28,2],[30,2],[33,1],[39,2],[40,1],[46,1],[47,1],[50,1],[52,1],[53,1],[55,1],[57,1],[58,1],[68,1],[69,1],[74,1],[78,1],[88,1]],"top":"3037 N CLIFTON AVE"},{"b":"1300 W ROSCOE ST","n":42,"r":3,"lat":41.943653,"lon":-87.662842,"med":2.4,"y":8,"f":"2019-03-13","l":"2026-06-30","ms":[[2,1],[4,1],[5,2],[6,4],[8,1],[11,1],[12,3],[13,1],[14,1],[16,1],[17,2],[22,1],[24,1],[26,2],[30,3],[34,1],[35,3],[39,1],[42,1],[53,1],[66,1],[68,1],[72,3],[73,1],[76,1],[84,1],[89,2]],"top":"1332 W ROSCOE ST"},{"b":"2800 N CLARK ST","n":40,"r":6,"lat":41.934057,"lon":-87.645665,"med":4.1,"y":6,"f":"2021-03-09","l":"2026-08-03","ms":[[26,1],[28,1],[30,1],[32,2],[34,1],[35,2],[36,3],[38,2],[39,4],[43,1],[46,1],[47,1],[48,1],[49,1],[53,1],[54,1],[55,1],[58,1],[61,1],[64,1],[69,3],[73,1],[78,1],[79,1],[82,2],[87,1],[90,1],[91,2]],"top":"2843 N CLARK ST"},{"b":"1100 W BARRY AVE","n":40,"r":4,"lat":41.938261,"lon":-87.657264,"med":6.4,"y":7,"f":"2019-06-22","l":"2026-08-11","ms":[[5,2],[7,1],[19,1],[20,2],[21,4],[22,1],[24,2],[27,1],[29,1],[30,2],[32,1],[33,5],[34,1],[37,1],[38,2],[39,1],[40,1],[41,1],[43,2],[44,1],[46,1],[71,1],[78,1],[83,1],[87,1],[90,1],[91,1]],"top":"1116 W BARRY AVE"},{"b":"2800 N CAMBRIDGE AVE","n":40,"r":4,"lat":41.933754,"lon":-87.642455,"med":8.7,"y":6,"f":"2021-06-03","l":"2026-07-27","ms":[[29,1],[44,2],[45,1],[48,1],[54,1],[56,5],[57,1],[58,2],[59,5],[61,2],[62,1],[66,1],[67,1],[68,1],[69,6],[70,1],[75,1],[78,2],[79,1],[80,2],[87,1],[90,1]],"top":"2827 N CAMBRIDGE AVE"},{"b":"3400 N HALSTED ST","n":40,"r":1,"lat":41.944497,"lon":-87.649623,"med":5.6,"y":8,"f":"2019-04-29","l":"2026-08-01","ms":[[3,1],[6,2],[8,1],[9,5],[10,1],[16,1],[26,1],[44,1],[45,1],[56,4],[57,3],[61,1],[62,2],[63,1],[64,1],[65,1],[66,1],[67,4],[69,2],[75,1],[76,1],[77,1],[78,2],[91,1]],"top":"3404 N HALSTED ST"},{"b":"1500 W SCHOOL ST","n":39,"r":0,"lat":41.941333,"lon":-87.666747,"med":5.8,"y":4,"f":"2019-06-04","l":"2022-09-08","ms":[[5,1],[6,1],[7,3],[8,1],[10,1],[17,1],[18,2],[19,2],[20,4],[21,3],[22,1],[23,1],[24,1],[26,2],[28,3],[29,2],[30,1],[31,1],[33,2],[36,1],[37,1],[38,1],[41,1],[43,1],[44,1]],"top":"1501 W SCHOOL ST"},{"b":"3300 N SEMINARY AVE","n":38,"r":2,"lat":41.942904,"lon":-87.656383,"med":3.5,"y":7,"f":"2019-04-18","l":"2025-11-06","ms":[[3,2],[7,1],[8,2],[9,1],[10,1],[11,4],[12,1],[15,3],[16,1],[19,2],[20,1],[22,1],[24,1],[27,1],[28,1],[30,1],[31,1],[33,1],[34,1],[39,1],[41,1],[42,1],[53,1],[59,1],[60,1],[76,1],[78,2],[81,1],[82,1]],"top":"3339 N SEMINARY AVE"},{"b":"3000 N KENMORE AVE","n":38,"r":1,"lat":41.937271,"lon":-87.655006,"med":6.4,"y":8,"f":"2019-06-16","l":"2026-01-06","ms":[[5,1],[16,1],[18,1],[19,1],[20,1],[23,1],[24,1],[27,3],[28,2],[29,1],[30,1],[31,1],[38,1],[39,2],[40,1],[41,8],[43,2],[44,1],[48,1],[53,1],[54,1],[56,1],[63,2],[75,1],[84,1]],"top":"3039 N KENMORE AVE"},{"b":"3700 N GREENVIEW AVE","n":37,"r":3,"lat":41.949882,"lon":-87.66626,"med":3.2,"y":8,"f":"2019-05-07","l":"2026-08-16","ms":[[4,2],[6,1],[7,5],[9,1],[21,1],[22,1],[24,2],[27,1],[30,1],[31,3],[33,3],[34,1],[37,1],[41,2],[51,1],[66,1],[67,1],[69,1],[70,1],[71,1],[72,1],[75,1],[79,1],[81,1],[89,1],[91,1]],"top":"3733 N GREENVIEW AVE"},{"b":"800 W CORNELIA AVE","n":37,"r":7,"lat":41.945015,"lon":-87.651241,"med":4.0,"y":8,"f":"2019-07-06","l":"2026-07-19","ms":[[6,1],[7,1],[8,1],[9,1],[11,1],[12,2],[13,2],[18,1],[21,1],[27,2],[31,1],[32,1],[33,1],[44,1],[46,1],[48,1],[52,1],[53,1],[55,1],[63,1],[64,2],[70,1],[72,1],[74,1],[79,2],[80,1],[81,2],[87,2],[89,1],[90,1]],"top":"841 W CORNELIA AVE"},{"b":"500 W OAKDALE AVE","n":37,"r":2,"lat":41.935365,"lon":-87.642464,"med":3.0,"y":6,"f":"2019-07-09","l":"2025-09-17","ms":[[6,1],[26,1],[31,2],[32,1],[33,2],[34,1],[40,1],[42,2],[43,5],[45,1],[49,1],[50,3],[51,3],[52,1],[54,1],[55,1],[58,1],[60,1],[77,2],[78,3],[79,1],[80,2]],"top":"509 W OAKDALE AVE"},{"b":"3500 N SEMINARY AVE","n":36,"r":2,"lat":41.945749,"lon":-87.656402,"med":3.3,"y":7,"f":"2019-03-01","l":"2026-08-24","ms":[[2,3],[4,1],[5,6],[6,2],[7,4],[8,1],[9,2],[10,1],[12,1],[16,1],[26,1],[27,1],[29,1],[31,1],[32,2],[33,1],[38,1],[43,1],[68,2],[73,1],[91,2]],"top":"3511 N SEMINARY AVE"},{"b":"1200 W NEWPORT AVE","n":36,"r":4,"lat":41.944614,"lon":-87.660259,"med":4.5,"y":8,"f":"2019-08-01","l":"2026-07-20","ms":[[7,1],[8,1],[9,1],[13,1],[16,1],[18,3],[20,2],[23,2],[24,2],[27,1],[28,1],[29,1],[30,1],[33,1],[46,1],[56,1],[60,3],[63,1],[64,1],[66,1],[76,1],[77,1],[78,1],[79,3],[80,1],[89,1],[90,1]],"top":"1228 W NEWPORT AVE"},{"b":"3400 N SEMINARY AVE","n":36,"r":4,"lat":41.944199,"lon":-87.656531,"med":3.4,"y":7,"f":"2019-03-13","l":"2025-11-03","ms":[[2,5],[5,2],[7,2],[8,1],[11,2],[19,1],[24,1],[28,1],[29,3],[30,2],[31,2],[43,1],[44,1],[45,1],[59,1],[68,1],[73,2],[75,2],[79,3],[80,1],[82,1]],"top":"3449 N SEMINARY AVE"},{"b":"3600 N WILTON AVE","n":36,"r":1,"lat":41.947947,"lon":-87.653424,"med":6.4,"y":8,"f":"2019-04-18","l":"2026-07-22","ms":[[3,1],[6,1],[9,1],[19,1],[20,2],[22,1],[26,1],[28,2],[29,1],[30,2],[32,1],[41,1],[44,1],[46,1],[50,2],[52,1],[54,2],[56,1],[57,1],[58,1],[60,1],[61,3],[62,1],[64,1],[68,1],[75,1],[76,1],[79,1],[90,1]],"top":"3620 N WILTON AVE"},{"b":"1300 W NEWPORT AVE","n":36,"r":14,"lat":41.944428,"lon":-87.66293,"med":2.9,"y":6,"f":"2019-03-22","l":"2026-08-25","ms":[[2,1],[5,1],[6,4],[9,2],[12,2],[13,1],[17,1],[21,1],[22,1],[33,1],[49,1],[55,1],[77,1],[78,3],[79,1],[80,1],[81,3],[82,1],[83,2],[84,2],[87,1],[90,1],[91,3]],"top":"1337 W NEWPORT AVE"},{"b":"3200 N SHEFFIELD AVE","n":35,"r":7,"lat":41.940692,"lon":-87.65438,"med":2.6,"y":8,"f":"2019-07-08","l":"2026-08-08","ms":[[6,1],[8,2],[9,1],[10,1],[11,1],[13,1],[23,1],[33,1],[41,1],[42,1],[43,1],[47,1],[53,2],[54,4],[55,1],[56,1],[70,1],[71,2],[75,1],[76,1],[77,2],[81,1],[85,2],[87,1],[91,3]],"top":"3223 N SHEFFIELD AVE"},{"b":"3500 N SOUTHPORT AVE","n":35,"r":3,"lat":41.94548,"lon":-87.664284,"med":2.8,"y":8,"f":"2019-04-25","l":"2026-08-17","ms":[[3,1],[4,1],[5,1],[8,1],[9,1],[13,2],[14,3],[15,1],[17,2],[18,3],[19,1],[20,2],[21,2],[24,2],[40,1],[42,3],[59,1],[62,2],[65,1],[72,1],[83,1],[84,1],[91,1]],"top":"3504 N SOUTHPORT AVE"},{"b":"3400 N SHEFFIELD AVE","n":35,"r":3,"lat":41.944365,"lon":-87.654154,"med":8.4,"y":8,"f":"2019-06-17","l":"2026-08-11","ms":[[5,1],[12,1],[25,1],[26,2],[29,1],[30,1],[34,3],[39,1],[42,1],[43,2],[44,3],[45,1],[46,2],[48,1],[49,1],[55,1],[57,2],[58,1],[65,1],[66,1],[67,1],[77,1],[78,2],[80,2],[91,1]],"top":"3416 N SHEFFIELD AVE"},{"b":"1100 W DIVERSEY PKWY","n":35,"r":6,"lat":41.932672,"lon":-87.657128,"med":4.0,"y":8,"f":"2019-03-18","l":"2026-08-01","ms":[[2,3],[9,4],[12,1],[19,2],[26,1],[27,2],[28,1],[31,1],[38,1],[40,1],[44,1],[55,1],[64,2],[67,1],[68,1],[69,2],[70,1],[71,2],[77,1],[80,1],[81,2],[86,1],[87,1],[91,1]],"top":"1128 W DIVERSEY PKWY"},{"b":"3800 N WAYNE AVE","n":35,"r":8,"lat":41.951898,"lon":-87.663257,"med":8.6,"y":8,"f":"2019-10-14","l":"2026-08-17","ms":[[9,1],[10,1],[13,1],[30,1],[43,3],[45,1],[54,2],[57,2],[59,1],[62,1],[65,1],[66,3],[67,1],[68,1],[69,2],[70,2],[71,1],[72,1],[74,1],[79,1],[80,3],[84,1],[91,3]],"top":"3832 N WAYNE AVE"},{"b":"3400 N ELAINE PL","n":35,"r":12,"lat":41.944942,"lon":-87.64808,"med":4.2,"y":8,"f":"2019-06-18","l":"2026-07-28","ms":[[5,1],[7,1],[9,2],[18,2],[24,2],[29,1],[30,1],[42,1],[43,1],[44,1],[51,1],[52,1],[54,2],[56,1],[58,1],[63,1],[67,1],[75,1],[77,1],[80,1],[81,1],[84,1],[85,2],[86,1],[88,3],[89,1],[90,2]],"top":"3444 N ELAINE PL"},{"b":"2800 N ORCHARD ST","n":35,"r":1,"lat":41.933943,"lon":-87.64691,"med":5.5,"y":7,"f":"2019-11-18","l":"2025-11-25","ms":[[10,1],[12,1],[25,1],[28,1],[29,1],[30,1],[31,1],[33,1],[34,2],[36,1],[43,2],[50,1],[51,1],[55,1],[62,1],[65,6],[66,2],[68,4],[76,1],[78,4],[82,1]],"top":"2850 N ORCHARD ST"},{"b":"1100 W PATTERSON AVE","n":34,"r":4,"lat":41.947998,"lon":-87.658263,"med":6.9,"y":8,"f":"2019-04-02","l":"2026-08-22","ms":[[3,1],[4,1],[5,1],[6,2],[7,1],[8,1],[9,2],[10,2],[18,1],[19,1],[20,1],[29,1],[33,6],[34,1],[42,1],[44,1],[46,1],[53,1],[56,1],[65,1],[77,2],[80,1],[81,1],[90,1],[91,1]],"top":"1117 W PATTERSON AVE"},{"b":"500 W SURF ST","n":33,"r":10,"lat":41.934474,"lon":-87.642743,"med":5.4,"y":7,"f":"2020-01-07","l":"2026-08-07","ms":[[12,2],[20,1],[21,1],[33,1],[34,1],[42,1],[46,3],[47,2],[52,1],[54,4],[55,2],[56,1],[57,1],[63,1],[75,1],[85,1],[86,2],[88,4],[89,1],[90,1],[91,1]],"top":"530 W SURF ST"},{"b":"700 W BRIAR PL","n":33,"r":2,"lat":41.939337,"lon":-87.648127,"med":4.8,"y":8,"f":"2019-07-21","l":"2026-06-26","ms":[[6,1],[7,3],[15,3],[21,1],[30,1],[44,1],[45,1],[48,1],[51,1],[52,1],[55,2],[56,2],[64,1],[67,4],[68,1],[70,1],[75,3],[77,1],[78,1],[79,1],[88,1],[89,1]],"top":"732 W BRIAR PL"},{"b":"1300 W EDDY ST","n":33,"r":0,"lat":41.945967,"lon":-87.662518,"med":10.9,"y":7,"f":"2019-10-14","l":"2025-07-21","ms":[[9,1],[17,1],[20,2],[21,5],[22,1],[23,1],[24,1],[29,1],[30,1],[32,1],[33,2],[35,1],[42,1],[43,2],[45,1],[48,1],[50,1],[52,1],[54,1],[56,1],[58,1],[60,1],[64,1],[76,1],[78,2]],"top":"1319 W EDDY ST"},{"b":"3700 N MAGNOLIA AVE","n":32,"r":2,"lat":41.950251,"lon":-87.660195,"med":3.0,"y":7,"f":"2020-03-24","l":"2026-02-14","ms":[[14,1],[15,1],[18,1],[19,2],[22,1],[33,1],[43,1],[45,1],[50,1],[51,1],[52,7],[53,2],[54,2],[56,4],[58,1],[69,2],[77,1],[84,1],[85,1]],"top":"3749 N MAGNOLIA AVE"},{"b":"1400 W HENDERSON ST","n":32,"r":0,"lat":41.942686,"lon":-87.664688,"med":5.6,"y":4,"f":"2019-12-17","l":"2022-11-17","ms":[[11,2],[18,1],[19,4],[20,2],[21,2],[23,1],[24,2],[25,1],[26,2],[27,1],[28,1],[29,5],[30,1],[31,1],[32,1],[34,1],[39,1],[41,2],[46,1]],"top":"1414 W HENDERSON ST"},{"b":"1100 W ROSCOE ST","n":32,"r":2,"lat":41.943714,"lon":-87.657336,"med":3.9,"y":8,"f":"2019-08-02","l":"2026-01-20","ms":[[7,1],[9,1],[10,2],[11,1],[14,1],[15,2],[16,1],[17,5],[18,1],[20,1],[22,2],[31,1],[32,1],[39,1],[49,1],[53,1],[57,1],[62,1],[68,1],[71,1],[75,1],[77,1],[78,1],[84,2]],"top":"1115 W ROSCOE ST"},{"b":"1100 W WELLINGTON AVE","n":32,"r":3,"lat":41.936427,"lon":-87.656978,"med":4.9,"y":7,"f":"2019-03-18","l":"2026-07-08","ms":[[2,5],[4,1],[6,2],[7,1],[9,1],[15,2],[17,1],[18,2],[20,1],[21,1],[23,1],[26,1],[29,1],[30,1],[31,1],[42,2],[43,1],[44,1],[52,2],[78,1],[89,1],[90,2]],"top":"1108 W WELLINGTON AVE"},{"b":"3300 N CLARK ST","n":32,"r":3,"lat":41.942159,"lon":-87.652167,"med":5.6,"y":7,"f":"2019-03-25","l":"2026-07-14","ms":[[2,1],[6,1],[7,1],[8,1],[13,1],[17,1],[18,1],[19,1],[20,1],[21,2],[25,1],[31,1],[35,2],[39,1],[42,1],[43,1],[48,1],[49,1],[51,1],[54,2],[56,1],[58,1],[59,1],[62,1],[64,1],[66,1],[89,1],[90,2]],"top":"3307 N CLARK ST"},{"b":"2800 N SHEFFIELD AVE","n":31,"r":4,"lat":41.933897,"lon":-87.654192,"med":3.1,"y":7,"f":"2019-04-23","l":"2026-08-22","ms":[[3,1],[5,1],[7,7],[9,1],[15,1],[16,1],[18,1],[20,1],[21,1],[22,3],[25,1],[28,1],[31,1],[44,1],[64,1],[65,1],[67,1],[68,1],[76,1],[81,1],[88,2],[91,1]],"top":"2848 N SHEFFIELD AVE"},{"b":"3300 N LAKEWOOD AVE","n":31,"r":1,"lat":41.943003,"lon":-87.661452,"med":2.9,"y":7,"f":"2019-04-01","l":"2026-06-18","ms":[[3,1],[5,2],[6,2],[7,5],[10,1],[14,1],[15,1],[18,2],[19,2],[21,1],[23,2],[34,1],[36,2],[37,1],[42,1],[43,1],[45,1],[58,1],[59,1],[72,1],[89,1]],"top":"3345 N LAKEWOOD AVE"},{"b":"1000 W WOLFRAM ST","n":31,"r":3,"lat":41.933631,"lon":-87.654848,"med":3.8,"y":8,"f":"2019-06-17","l":"2026-08-22","ms":[[5,1],[12,1],[19,1],[21,2],[28,1],[46,1],[47,1],[48,1],[49,1],[50,1],[52,1],[55,1],[58,1],[61,1],[64,1],[69,3],[71,2],[72,1],[74,1],[75,1],[77,4],[88,1],[90,1],[91,1]],"top":"1000 W WOLFRAM ST"},{"b":"3600 N SOUTHPORT AVE","n":30,"r":8,"lat":41.948595,"lon":-87.664374,"med":4.5,"y":6,"f":"2020-08-23","l":"2026-02-13","ms":[[19,1],[29,2],[33,1],[45,1],[60,1],[66,1],[67,2],[76,1],[77,1],[78,4],[79,9],[80,2],[81,1],[83,1],[85,2]],"top":"3630 N SOUTHPORT AVE"},{"b":"400 W BARRY AVE","n":30,"r":0,"lat":41.937417,"lon":-87.641505,"med":3.8,"y":7,"f":"2019-04-16","l":"2025-08-20","ms":[[3,1],[8,1],[17,1],[26,1],[28,2],[29,1],[34,1],[38,2],[46,3],[47,1],[48,1],[50,1],[54,1],[58,1],[60,3],[66,2],[67,1],[68,1],[69,1],[70,1],[74,1],[78,1],[79,1]],"top":"445 W BARRY AVE"},{"b":"1200 W GRACE ST","n":30,"r":7,"lat":41.951198,"lon":-87.660674,"med":3.7,"y":8,"f":"2019-08-19","l":"2026-04-29","ms":[[7,1],[9,1],[20,1],[34,1],[38,1],[39,2],[45,1],[46,1],[47,1],[48,1],[51,1],[54,2],[58,1],[63,1],[65,1],[66,1],[68,2],[69,1],[76,1],[78,1],[80,1],[81,1],[82,3],[84,1],[87,1]],"top":"1240 W GRACE ST"},{"b":"3200 N CLARK ST","n":29,"r":4,"lat":41.940719,"lon":-87.651572,"med":4.8,"y":8,"f":"2019-08-14","l":"2026-08-23","ms":[[7,1],[8,2],[13,1],[19,1],[21,1],[22,1],[26,1],[34,1],[41,1],[46,1],[47,3],[49,1],[53,1],[54,1],[55,2],[57,1],[58,1],[64,2],[71,1],[72,1],[87,1],[90,1],[91,2]],"top":"3219 N CLARK ST"},{"b":"3600 N MAGNOLIA AVE","n":29,"r":0,"lat":41.948577,"lon":-87.660162,"med":3.0,"y":7,"f":"2019-04-02","l":"2025-07-02","ms":[[3,1],[4,1],[5,1],[8,1],[16,1],[17,1],[18,1],[19,1],[25,1],[26,1],[29,1],[30,1],[44,1],[51,1],[52,1],[53,2],[62,1],[65,1],[68,1],[70,3],[71,1],[75,2],[77,1],[78,2]],"top":"3631 N MAGNOLIA AVE"},{"b":"1400 W MELROSE ST","n":29,"r":0,"lat":41.940879,"lon":-87.665832,"med":4.2,"y":4,"f":"2019-05-30","l":"2022-03-29","ms":[[4,1],[5,1],[6,1],[7,1],[9,1],[13,2],[16,1],[17,1],[18,2],[20,4],[21,1],[26,1],[27,3],[28,2],[29,3],[30,2],[31,1],[38,1]],"top":"1436 W MELROSE ST"},{"b":"900 W BELMONT AVE","n":28,"r":5,"lat":41.939971,"lon":-87.652354,"med":3.0,"y":7,"f":"2019-04-09","l":"2026-08-13","ms":[[3,1],[7,1],[9,2],[10,1],[11,1],[14,1],[21,1],[24,1],[26,1],[27,2],[28,1],[39,1],[41,1],[42,1],[44,3],[45,1],[48,1],[57,1],[60,1],[84,1],[85,3],[91,1]],"top":"916 W BELMONT AVE"},{"b":"3100 N BROADWAY","n":28,"r":13,"lat":41.939255,"lon":-87.644382,"med":7.4,"y":6,"f":"2020-01-28","l":"2026-08-25","ms":[[12,1],[24,1],[26,1],[40,2],[43,1],[47,1],[55,2],[57,3],[59,1],[78,2],[81,2],[82,3],[88,2],[90,3],[91,3]],"top":"3175 N BROADWAY"},{"b":"600 W CORNELIA AVE","n":27,"r":0,"lat":41.945261,"lon":-87.646667,"med":3.2,"y":7,"f":"2019-08-22","l":"2025-05-07","ms":[[7,1],[8,2],[9,1],[16,2],[21,1],[26,2],[27,1],[29,2],[31,1],[38,1],[39,1],[40,1],[41,1],[42,1],[43,2],[44,2],[45,1],[51,1],[65,1],[66,1],[76,1]],"top":"653 W CORNELIA AVE"},{"b":"700 W ALDINE AVE","n":27,"r":10,"lat":41.942043,"lon":-87.647968,"med":3.1,"y":7,"f":"2019-05-09","l":"2026-05-15","ms":[[4,2],[17,2],[18,1],[21,2],[23,1],[25,1],[31,1],[39,1],[41,1],[46,1],[68,2],[72,1],[77,1],[80,1],[81,2],[82,1],[87,4],[88,2]],"top":"744 W ALDINE AVE"},{"b":"700 W BELMONT AVE","n":27,"r":1,"lat":41.939784,"lon":-87.648008,"med":3.2,"y":6,"f":"2020-01-27","l":"2025-11-25","ms":[[12,1],[13,1],[21,2],[23,2],[29,1],[35,1],[38,1],[43,1],[44,1],[45,1],[52,1],[56,1],[58,1],[63,1],[66,2],[68,1],[74,2],[76,4],[77,1],[82,1]],"top":"727 W BELMONT AVE"},{"b":"600 W BUCKINGHAM PL","n":27,"r":4,"lat":41.942556,"lon":-87.645704,"med":5.3,"y":8,"f":"2019-07-08","l":"2026-08-04","ms":[[6,1],[9,1],[14,1],[17,2],[18,2],[29,2],[33,1],[41,1],[45,1],[49,1],[52,1],[61,1],[67,4],[68,2],[74,1],[78,1],[80,1],[81,1],[85,1],[91,1]],"top":"636 W BUCKINGHAM PL"},{"b":"2800 N HALSTED ST","n":26,"r":0,"lat":41.934057,"lon":-87.648807,"med":3.7,"y":7,"f":"2019-07-03","l":"2025-01-31","ms":[[6,2],[12,1],[13,1],[19,1],[31,1],[32,4],[33,1],[35,3],[38,4],[40,1],[41,1],[43,1],[44,1],[47,1],[52,1],[68,1],[72,1]],"top":"2847 N HALSTED ST"},{"b":"600 W ALDINE AVE","n":26,"r":1,"lat":41.942073,"lon":-87.645063,"med":2.1,"y":6,"f":"2019-04-10","l":"2025-09-12","ms":[[3,1],[16,1],[21,1],[22,1],[27,1],[31,1],[34,1],[36,1],[37,1],[39,3],[42,1],[43,2],[44,1],[45,1],[47,1],[71,1],[72,2],[73,1],[74,1],[76,2],[80,1]],"top":"606 W ALDINE AVE"},{"b":"3000 N SEMINARY AVE","n":26,"r":3,"lat":41.93691,"lon":-87.656706,"med":6.4,"y":7,"f":"2019-04-25","l":"2026-07-24","ms":[[3,1],[6,1],[7,1],[17,1],[18,1],[23,1],[29,2],[31,1],[33,1],[42,2],[45,2],[47,1],[48,1],[49,1],[50,3],[54,1],[56,1],[77,1],[80,1],[87,1],[90,1]],"top":"3020 N SEMINARY AVE"},{"b":"1500 W HENDERSON ST","n":25,"r":0,"lat":41.94267,"lon":-87.666782,"med":5.0,"y":3,"f":"2020-04-20","l":"2022-10-23","ms":[[15,1],[17,1],[19,4],[21,3],[27,2],[28,1],[29,1],[30,2],[33,2],[34,2],[37,1],[38,1],[41,1],[42,1],[43,1],[45,1]],"top":"1508 W HENDERSON ST"},{"b":"1000 W ROSCOE ST","n":25,"r":4,"lat":41.943753,"lon":-87.655883,"med":4.5,"y":7,"f":"2019-10-03","l":"2026-08-11","ms":[[9,2],[12,1],[13,1],[15,1],[19,1],[30,1],[31,2],[32,1],[41,3],[45,2],[47,1],[52,2],[53,1],[54,1],[62,1],[85,1],[87,1],[88,1],[91,1]],"top":"1040 W ROSCOE ST"},{"b":"3700 N RACINE AVE","n":25,"r":0,"lat":41.950401,"lon":-87.658958,"med":2.7,"y":6,"f":"2019-04-24","l":"2025-06-04","ms":[[3,1],[7,3],[11,1],[15,1],[17,1],[22,1],[26,1],[27,1],[29,1],[31,1],[32,1],[33,1],[49,1],[58,3],[59,1],[63,3],[65,1],[72,1],[77,1]],"top":"3755 N RACINE AVE"},{"b":"600 W MELROSE ST","n":25,"r":0,"lat":41.940864,"lon":-87.646539,"med":2.7,"y":6,"f":"2019-03-11","l":"2025-07-25","ms":[[2,1],[5,1],[6,1],[7,1],[8,2],[26,1],[30,1],[31,1],[32,1],[39,3],[47,1],[48,4],[50,1],[54,1],[60,1],[65,1],[66,1],[77,1],[78,1]],"top":"665 W MELROSE ST"},{"b":"3700 N CLIFTON AVE","n":25,"r":1,"lat":41.950275,"lon":-87.657791,"med":3.8,"y":6,"f":"2019-06-19","l":"2025-10-14","ms":[[5,1],[8,3],[11,2],[12,1],[13,1],[14,1],[19,1],[21,1],[22,1],[27,1],[28,1],[29,2],[30,1],[32,2],[49,1],[56,1],[71,1],[77,2],[81,1]],"top":"3742 N CLIFTON AVE"},{"b":"1000 W CORNELIA AVE","n":25,"r":0,"lat":41.945173,"lon":-87.656445,"med":2.9,"y":7,"f":"2019-04-15","l":"2025-05-09","ms":[[3,2],[4,1],[5,3],[8,1],[16,1],[21,1],[22,2],[25,1],[28,1],[33,2],[43,1],[44,1],[47,1],[55,2],[56,1],[58,1],[61,1],[63,1],[76,1]],"top":"1063 W CORNELIA AVE"},{"b":"1300 W ADDISON ST","n":25,"r":0,"lat":41.947324,"lon":-87.662448,"med":2.1,"y":4,"f":"2019-04-09","l":"2024-05-25","ms":[[3,1],[5,1],[6,2],[8,2],[9,1],[15,3],[17,1],[18,4],[19,3],[21,1],[54,1],[56,1],[57,2],[64,2]],"top":"1318 W ADDISON ST"},{"b":"3700 N CLARK ST","n":25,"r":1,"lat":41.950709,"lon":-87.659653,"med":3.6,"y":7,"f":"2019-03-04","l":"2025-09-06","ms":[[2,1],[6,1],[7,1],[9,3],[12,1],[18,1],[20,1],[22,1],[28,1],[31,2],[33,1],[36,1],[41,3],[48,1],[52,1],[57,2],[60,1],[71,1],[80,1]],"top":"3768 N CLARK ST"},{"b":"3600 N FREMONT ST","n":25,"r":0,"lat":41.947884,"lon":-87.652275,"med":3.1,"y":6,"f":"2019-06-11","l":"2024-05-17","ms":[[5,2],[7,1],[8,1],[9,1],[10,1],[12,1],[13,1],[16,1],[17,1],[18,1],[19,3],[21,2],[22,1],[23,1],[29,1],[39,1],[51,1],[55,1],[58,1],[62,1],[64,1]],"top":"3618 N FREMONT ST"},{"b":"500 W ALDINE AVE","n":25,"r":3,"lat":41.942333,"lon":-87.643243,"med":4.8,"y":8,"f":"2019-10-21","l":"2026-06-18","ms":[[9,2],[17,2],[18,1],[20,1],[28,1],[29,1],[45,1],[46,1],[48,1],[50,2],[51,1],[52,1],[54,2],[56,1],[58,1],[59,1],[61,1],[78,1],[81,1],[89,2]],"top":"540 W ALDINE AVE"},{"b":"2800 N PINE GROVE AVE","n":24,"r":3,"lat":41.933672,"lon":-87.64129,"med":7.1,"y":6,"f":"2021-11-05","l":"2026-04-03","ms":[[34,1],[35,2],[37,1],[38,1],[39,1],[40,1],[42,1],[44,1],[45,2],[54,1],[57,1],[65,1],[67,1],[68,1],[69,2],[72,1],[77,1],[78,1],[80,1],[82,1],[87,1]],"top":"2825 N PINE GROVE AVE"},{"b":"3500 N RACINE AVE","n":24,"r":7,"lat":41.946548,"lon":-87.658992,"med":6.4,"y":8,"f":"2019-08-12","l":"2026-07-24","ms":[[7,1],[8,1],[9,2],[11,1],[21,1],[29,1],[31,1],[32,1],[33,1],[41,1],[51,1],[68,1],[69,1],[75,2],[78,1],[79,1],[81,1],[85,2],[86,1],[87,1],[90,1]],"top":"3537 N RACINE AVE"},{"b":"700 W OAKDALE AVE","n":24,"r":10,"lat":41.935772,"lon":-87.648534,"med":6.7,"y":5,"f":"2020-06-05","l":"2026-08-25","ms":[[17,1],[21,1],[27,1],[32,1],[33,1],[39,1],[44,1],[46,1],[49,1],[53,2],[54,1],[55,2],[88,2],[89,3],[90,3],[91,2]],"top":"730 W OAKDALE AVE"},{"b":"1000 W GEORGE ST","n":23,"r":4,"lat":41.934636,"lon":-87.655079,"med":5.9,"y":8,"f":"2019-09-10","l":"2026-07-09","ms":[[8,2],[12,1],[15,1],[18,1],[19,1],[21,1],[24,1],[32,2],[33,2],[34,1],[35,1],[39,1],[41,1],[54,1],[69,1],[78,1],[80,1],[84,1],[89,1],[90,1]],"top":"1017 W GEORGE ST"},{"b":"2900 N RACINE AVE","n":23,"r":0,"lat":41.935165,"lon":-87.658528,"med":3.2,"y":5,"f":"2019-05-10","l":"2025-07-30","ms":[[4,1],[9,2],[15,2],[18,2],[19,1],[20,1],[21,1],[22,1],[23,1],[26,1],[27,3],[30,2],[31,1],[32,1],[33,1],[39,1],[78,1]],"top":"2919 N RACINE AVE"},{"b":"3200 N HALSTED ST","n":23,"r":7,"lat":41.940412,"lon":-87.649061,"med":2.7,"y":7,"f":"2019-02-27","l":"2026-08-23","ms":[[1,1],[6,1],[7,1],[11,3],[12,1],[13,1],[29,1],[41,1],[43,1],[66,1],[70,2],[72,1],[73,1],[83,2],[84,1],[90,2],[91,2]],"top":"3214 N HALSTED ST"},{"b":"500 W WELLINGTON AVE","n":23,"r":2,"lat":41.936787,"lon":-87.643089,"med":6.7,"y":8,"f":"2019-06-04","l":"2026-06-02","ms":[[5,1],[12,1],[13,1],[17,2],[21,1],[29,1],[39,2],[42,1],[43,1],[47,1],[54,1],[55,1],[56,2],[57,1],[58,1],[59,1],[60,1],[78,1],[80,1],[89,1]],"top":"540 W WELLINGTON AVE"},{"b":"1300 W BELMONT AVE","n":23,"r":0,"lat":41.940018,"lon":-87.662959,"med":3.9,"y":7,"f":"2019-06-22","l":"2025-06-07","ms":[[5,1],[6,3],[12,1],[17,2],[18,2],[19,2],[28,1],[32,1],[44,1],[47,1],[52,1],[56,1],[57,1],[62,1],[66,2],[75,1],[77,1]],"top":"1346 W BELMONT AVE"},{"b":"400 W WELLINGTON AVE","n":23,"r":2,"lat":41.93661,"lon":-87.640808,"med":8.9,"y":8,"f":"2019-04-17","l":"2026-05-05","ms":[[3,1],[5,1],[10,1],[16,2],[17,1],[21,1],[24,1],[29,1],[32,1],[33,1],[42,2],[43,1],[44,2],[46,1],[49,1],[53,1],[57,1],[68,1],[80,1],[88,1]],"top":"434 W WELLINGTON AVE"},{"b":"1100 W CORNELIA AVE","n":23,"r":0,"lat":41.945188,"lon":-87.65738,"med":3.7,"y":6,"f":"2019-04-23","l":"2024-01-25","ms":[[3,1],[7,2],[19,1],[20,1],[21,1],[22,2],[24,1],[26,1],[27,3],[32,1],[34,1],[36,1],[41,1],[42,1],[43,1],[49,1],[52,1],[54,1],[60,1]],"top":"1133 W CORNELIA AVE"},{"b":"400 W SURF ST","n":23,"r":2,"lat":41.93429,"lon":-87.640299,"med":2.1,"y":6,"f":"2020-01-11","l":"2026-03-02","ms":[[12,1],[14,1],[15,1],[18,1],[19,1],[38,2],[40,3],[45,2],[49,3],[53,1],[57,1],[61,2],[67,1],[75,1],[84,1],[86,1]],"top":"415 W SURF ST"},{"b":"700 W BUCKINGHAM PL","n":22,"r":2,"lat":41.942575,"lon":-87.648129,"med":4.1,"y":8,"f":"2019-03-28","l":"2026-07-14","ms":[[2,1],[6,1],[16,2],[17,1],[21,1],[23,1],[27,2],[28,1],[34,1],[43,1],[45,1],[53,1],[55,1],[66,1],[68,1],[72,1],[78,2],[87,1],[90,1]],"top":"706 W BUCKINGHAM PL"},{"b":"800 W WOLFRAM ST","n":22,"r":0,"lat":41.933406,"lon":-87.65005,"med":3.5,"y":7,"f":"2019-05-27","l":"2025-02-23","ms":[[4,1],[6,2],[7,1],[13,1],[16,1],[18,1],[19,1],[26,1],[30,2],[31,1],[32,1],[33,1],[41,3],[48,1],[51,1],[63,1],[70,1],[73,1]],"top":"817 W WOLFRAM ST"},{"b":"3700 N SOUTHPORT AVE","n":22,"r":4,"lat":41.949909,"lon":-87.664358,"med":7.1,"y":7,"f":"2019-06-20","l":"2026-07-31","ms":[[5,1],[7,1],[11,1],[12,2],[21,1],[27,1],[28,1],[29,1],[32,1],[34,1],[35,1],[38,1],[42,1],[66,1],[67,1],[68,2],[79,2],[80,1],[90,1]],"top":"3732 N SOUTHPORT AVE"},{"b":"3600 N BOSWORTH AVE","n":22,"r":0,"lat":41.947946,"lon":-87.667395,"med":4.4,"y":4,"f":"2019-03-13","l":"2022-05-16","ms":[[2,1],[3,2],[5,1],[6,2],[9,1],[13,1],[14,1],[19,2],[21,1],[23,1],[28,1],[30,2],[31,1],[32,1],[33,1],[35,1],[40,2]],"top":"3621 N BOSWORTH AVE"},{"b":"3100 N HUDSON AVE","n":22,"r":6,"lat":41.939847,"lon":-87.640776,"med":7.5,"y":6,"f":"2020-04-06","l":"2026-08-01","ms":[[15,2],[30,1],[31,2],[50,1],[54,1],[56,1],[58,1],[62,1],[63,1],[65,1],[69,1],[71,1],[78,1],[79,1],[80,1],[87,1],[88,2],[90,1],[91,1]],"top":"3175 N HUDSON AVE"},{"b":"1400 W ROSCOE ST","n":21,"r":0,"lat":41.943203,"lon":-87.664995,"med":3.2,"y":6,"f":"2019-08-21","l":"2025-08-09","ms":[[7,1],[16,1],[19,1],[20,1],[21,1],[23,5],[24,1],[27,1],[28,5],[30,1],[45,1],[65,1],[79,1]],"top":"1425 W ROSCOE ST"},{"b":"3400 N JANSSEN AVE","n":21,"r":0,"lat":41.944077,"lon":-87.664872,"med":3.9,"y":7,"f":"2019-05-24","l":"2025-07-31","ms":[[4,1],[17,1],[19,1],[26,1],[29,1],[30,1],[31,1],[32,1],[33,1],[45,1],[46,2],[50,1],[52,1],[55,1],[57,1],[62,1],[76,2],[77,1],[78,1]],"top":"3401 N JANSSEN AVE"},{"b":"900 W WOLFRAM ST","n":21,"r":1,"lat":41.933772,"lon":-87.652364,"med":4.1,"y":6,"f":"2020-09-02","l":"2025-09-21","ms":[[20,1],[26,1],[41,1],[42,1],[53,1],[61,1],[64,2],[65,6],[66,1],[67,1],[72,1],[73,1],[74,1],[78,1],[80,1]],"top":"922 W WOLFRAM ST"},{"b":"1200 W CORNELIA AVE","n":21,"r":0,"lat":41.945089,"lon":-87.660408,"med":8.0,"y":5,"f":"2019-09-07","l":"2025-07-21","ms":[[8,1],[11,2],[27,1],[30,1],[32,4],[33,1],[34,1],[35,1],[42,1],[43,1],[44,1],[46,1],[47,1],[61,1],[66,1],[68,1],[78,1]],"top":"1257 W CORNELIA AVE"},{"b":"500 W BELMONT AVE","n":21,"r":4,"lat":41.939793,"lon":-87.643602,"med":4.0,"y":8,"f":"2019-05-29","l":"2026-03-12","ms":[[4,1],[11,1],[13,1],[21,1],[23,1],[35,1],[43,1],[44,1],[45,1],[47,1],[55,1],[63,1],[65,1],[78,4],[83,2],[86,2]],"top":"541 W BELMONT AVE"},{"b":"1100 W GRACE ST","n":21,"r":1,"lat":41.950852,"lon":-87.658071,"med":3.2,"y":6,"f":"2019-03-21","l":"2026-01-06","ms":[[2,1],[5,1],[6,1],[7,2],[8,1],[12,1],[13,1],[15,2],[16,1],[18,1],[32,2],[33,1],[36,1],[38,1],[40,2],[76,1],[84,1]],"top":"1131 W GRACE ST"},{"b":"800 W BARRY AVE","n":21,"r":4,"lat":41.938351,"lon":-87.651036,"med":4.5,"y":6,"f":"2019-05-09","l":"2026-06-11","ms":[[4,1],[5,1],[26,1],[31,1],[40,3],[46,2],[51,1],[55,1],[64,1],[65,1],[68,1],[69,1],[70,2],[84,1],[87,1],[88,1],[89,1]],"top":"855 W BARRY AVE"},{"b":"3700 N WILTON AVE","n":21,"r":1,"lat":41.950244,"lon":-87.653435,"med":4.0,"y":7,"f":"2019-07-19","l":"2026-02-26","ms":[[6,2],[9,2],[11,1],[12,1],[19,1],[23,1],[27,1],[30,1],[32,1],[33,2],[41,1],[43,2],[45,1],[46,1],[57,1],[70,1],[85,1]],"top":"3750 N WILTON AVE"},{"b":"1400 W GRACE ST","n":21,"r":0,"lat":41.950883,"lon":-87.666332,"med":9.0,"y":4,"f":"2019-06-14","l":"2022-11-04","ms":[[5,1],[6,1],[7,1],[8,1],[21,1],[22,1],[29,1],[34,1],[38,1],[42,2],[43,3],[44,5],[45,1],[46,1]],"top":"1468 W GRACE ST"},{"b":"3000 N BROADWAY","n":21,"r":13,"lat":41.937147,"lon":-87.643994,"med":4.9,"y":4,"f":"2020-12-11","l":"2026-07-21","ms":[[23,1],[53,1],[55,1],[56,1],[76,1],[78,2],[79,1],[80,1],[81,2],[82,3],[86,5],[89,1],[90,1]],"top":"3019 N BROADWAY"},{"b":"3600 N LAKEWOOD AVE","n":21,"r":1,"lat":41.948396,"lon":-87.661891,"med":8.8,"y":6,"f":"2020-06-23","l":"2026-04-26","ms":[[17,1],[20,2],[24,1],[30,1],[48,1],[54,1],[57,2],[62,1],[63,1],[69,4],[70,1],[72,2],[75,1],[76,1],[87,1]],"top":"3647 N LAKEWOOD AVE"},{"b":"900 W ADDISON ST","n":20,"r":3,"lat":41.94737,"lon":-87.65269,"med":2.9,"y":8,"f":"2019-03-09","l":"2026-03-28","ms":[[2,1],[8,1],[12,1],[17,1],[22,1],[23,1],[24,1],[26,1],[30,1],[31,1],[39,1],[43,1],[51,2],[57,1],[65,1],[74,1],[85,1],[86,2]],"top":"912 W ADDISON ST"},{"b":"1400 W SCHOOL ST","n":20,"r":0,"lat":41.941468,"lon":-87.665255,"med":4.5,"y":4,"f":"2019-07-03","l":"2022-09-19","ms":[[6,1],[8,1],[9,1],[19,1],[21,2],[22,5],[28,2],[29,1],[30,1],[31,1],[33,2],[44,2]],"top":"1426 W SCHOOL ST"},{"b":"3800 N JANSSEN AVE","n":20,"r":0,"lat":41.952183,"lon":-87.666066,"med":2.5,"y":4,"f":"2019-04-21","l":"2022-05-14","ms":[[3,1],[5,1],[7,1],[8,2],[9,1],[10,1],[19,5],[26,1],[27,3],[28,1],[29,1],[33,1],[40,1]],"top":"3858 N JANSSEN AVE"},{"b":"1500 W MELROSE ST","n":20,"r":0,"lat":41.940836,"lon":-87.667273,"med":9.4,"y":4,"f":"2019-03-24","l":"2022-08-26","ms":[[2,1],[6,1],[7,1],[11,1],[14,1],[15,1],[18,1],[20,2],[22,1],[24,1],[28,1],[29,1],[30,1],[31,1],[32,2],[42,1],[43,2]],"top":"1512 W MELROSE ST"},{"b":"1200 W ROSCOE ST","n":20,"r":1,"lat":41.943679,"lon":-87.660407,"med":1.5,"y":8,"f":"2019-06-18","l":"2026-02-17","ms":[[5,1],[8,1],[12,1],[13,2],[14,1],[18,1],[26,1],[32,1],[47,1],[49,1],[53,2],[67,1],[69,2],[73,1],[74,1],[79,1],[85,1]],"top":"1252 W ROSCOE ST"},{"b":"3500 N JANSSEN AVE","n":20,"r":2,"lat":41.945697,"lon":-87.664904,"med":7.7,"y":8,"f":"2019-09-11","l":"2026-07-07","ms":[[8,7],[9,1],[11,1],[23,1],[26,1],[44,1],[55,2],[59,1],[65,2],[79,1],[83,1],[90,1]],"top":"3501 N JANSSEN AVE"},{"b":"900 W SCHOOL ST","n":19,"r":1,"lat":41.941515,"lon":-87.652585,"med":5.7,"y":6,"f":"2020-06-18","l":"2025-09-26","ms":[[17,1],[28,1],[30,1],[31,3],[32,2],[33,2],[39,2],[52,1],[61,1],[67,1],[69,1],[71,1],[78,1],[80,1]],"top":"911 W SCHOOL ST"},{"b":"2800 N RACINE AVE","n":19,"r":1,"lat":41.933601,"lon":-87.658461,"med":10.9,"y":7,"f":"2019-09-24","l":"2025-09-14","ms":[[8,1],[19,2],[21,1],[33,1],[38,1],[40,1],[41,1],[44,1],[46,2],[47,1],[55,1],[56,1],[58,1],[66,2],[78,1],[80,1]],"top":"2839 N RACINE AVE"},{"b":"1300 W MELROSE ST","n":19,"r":1,"lat":41.940604,"lon":-87.662985,"med":6.4,"y":8,"f":"2019-08-06","l":"2026-08-04","ms":[[7,1],[10,2],[18,3],[19,1],[22,1],[30,1],[43,1],[46,1],[57,1],[58,1],[63,1],[67,2],[72,1],[78,1],[91,1]],"top":"1335 W MELROSE ST"},{"b":"3200 N LAKEWOOD AVE","n":18,"r":1,"lat":41.941091,"lon":-87.661538,"med":4.5,"y":5,"f":"2019-03-11","l":"2026-06-05","ms":[[2,1],[6,1],[7,2],[8,1],[9,1],[16,1],[18,1],[19,2],[24,1],[28,1],[29,2],[30,2],[68,1],[89,1]],"top":"3214 N LAKEWOOD AVE"},{"b":"1000 W BELMONT AVE","n":18,"r":1,"lat":41.93989,"lon":-87.655076,"med":1.9,"y":8,"f":"2019-05-13","l":"2026-02-23","ms":[[4,1],[7,1],[9,1],[11,1],[12,2],[17,1],[19,3],[26,1],[39,1],[49,1],[55,1],[56,1],[71,1],[73,1],[85,1]],"top":"1001 W BELMONT AVE"},{"b":"800 W OAKDALE AVE","n":18,"r":4,"lat":41.935185,"lon":-87.650748,"med":3.5,"y":6,"f":"2019-07-29","l":"2026-05-26","ms":[[6,1],[11,1],[41,1],[42,1],[51,2],[54,1],[57,1],[65,2],[70,1],[74,1],[78,1],[79,1],[81,1],[82,2],[88,1]],"top":"841 W OAKDALE AVE"},{"b":"1200 W HENDERSON ST","n":18,"r":1,"lat":41.942378,"lon":-87.660247,"med":5.6,"y":7,"f":"2019-03-05","l":"2025-09-22","ms":[[2,1],[5,1],[7,1],[8,2],[17,1],[18,1],[22,1],[33,1],[34,1],[35,2],[36,1],[58,1],[60,1],[79,2],[80,1]],"top":"1221 W HENDERSON ST"},{"b":"3200 N BROADWAY","n":18,"r":5,"lat":41.941521,"lon":-87.644205,"med":2.0,"y":6,"f":"2020-07-07","l":"2026-06-13","ms":[[18,1],[24,1],[34,1],[36,1],[45,1],[61,4],[65,1],[69,1],[70,1],[78,1],[79,1],[82,1],[86,2],[89,1]],"top":"3251 N BROADWAY"},{"b":"3000 N RACINE AVE","n":17,"r":0,"lat":41.936949,"lon":-87.658568,"med":5.0,"y":6,"f":"2019-08-16","l":"2024-10-06","ms":[[7,2],[11,1],[19,1],[21,1],[28,1],[35,1],[36,1],[39,1],[42,1],[43,1],[45,1],[46,1],[56,1],[64,1],[65,1],[69,1]],"top":"3011 N RACINE AVE"},{"b":"2900 N SEMINARY AVE","n":17,"r":1,"lat":41.93516,"lon":-87.656585,"med":2.1,"y":7,"f":"2019-02-27","l":"2026-06-30","ms":[[1,1],[2,1],[4,2],[5,1],[14,1],[27,1],[28,1],[40,1],[41,1],[43,1],[46,1],[59,1],[60,2],[65,1],[89,1]],"top":"2928 N SEMINARY AVE"},{"b":"3100 N BROADWAY ST","n":17,"r":0,"lat":41.938961,"lon":-87.644375,"med":3.0,"y":4,"f":"2019-08-21","l":"2022-10-20","ms":[[7,1],[8,1],[9,4],[10,1],[11,3],[12,2],[13,1],[26,1],[27,1],[32,1],[45,1]],"top":"3153 N BROADWAY ST"},{"b":"2900 N SHEFFIELD AVE","n":17,"r":9,"lat":41.935482,"lon":-87.654222,"med":6.9,"y":6,"f":"2019-06-24","l":"2026-07-24","ms":[[5,1],[8,2],[18,1],[20,2],[35,1],[68,1],[80,2],[81,2],[85,1],[87,1],[88,1],[89,1],[90,1]],"top":"2922 N SHEFFIELD AVE"},{"b":"3600 N JANSSEN AVE","n":17,"r":2,"lat":41.948406,"lon":-87.665567,"med":3.7,"y":6,"f":"2020-06-19","l":"2026-04-14","ms":[[17,1],[18,1],[19,1],[20,1],[21,1],[24,1],[30,1],[49,1],[51,1],[56,2],[58,1],[61,2],[72,1],[79,1],[87,1]],"top":"3644 N JANSSEN AVE"},{"b":"1300 W CORNELIA AVE","n":17,"r":7,"lat":41.945064,"lon":-87.663159,"med":6.0,"y":6,"f":"2019-12-02","l":"2026-02-10","ms":[[11,1],[19,1],[20,1],[21,1],[31,1],[48,1],[55,1],[56,1],[79,4],[84,4],[85,1]],"top":"1343 W CORNELIA AVE"},{"b":"400 W OAKDALE AVE","n":17,"r":0,"lat":41.935311,"lon":-87.640821,"med":4.1,"y":5,"f":"2021-04-24","l":"2025-04-21","ms":[[27,1],[40,1],[41,2],[42,3],[46,1],[47,1],[48,1],[49,1],[53,1],[56,1],[57,2],[61,1],[75,1]],"top":"421 W OAKDALE AVE"},{"b":"400 W DIVERSEY PKWY","n":16,"r":3,"lat":41.93296,"lon":-87.640342,"med":4.0,"y":6,"f":"2019-06-03","l":"2026-06-02","ms":[[5,1],[40,2],[42,2],[56,1],[57,2],[59,1],[63,1],[77,3],[83,1],[86,1],[89,1]],"top":"424 W DIVERSEY PKWY"},{"b":"3500 N HALSTED ST","n":16,"r":1,"lat":41.94639,"lon":-87.649808,"med":7.4,"y":6,"f":"2020-10-22","l":"2026-03-16","ms":[[21,1],[29,2],[30,1],[38,3],[48,1],[50,1],[54,2],[55,1],[67,2],[70,1],[86,1]],"top":"3530 N HALSTED ST"},{"b":"3500 N GREENVIEW AVE","n":16,"r":0,"lat":41.94616,"lon":-87.666142,"med":2.1,"y":4,"f":"2019-07-24","l":"2022-09-16","ms":[[6,1],[9,1],[19,1],[27,2],[28,1],[34,1],[35,3],[38,1],[40,3],[41,1],[44,1]],"top":"3539 N GREENVIEW AVE"},{"b":"3100 N RACINE AVE","n":16,"r":6,"lat":41.93883,"lon":-87.658634,"med":2.0,"y":6,"f":"2019-04-28","l":"2026-07-12","ms":[[3,1],[4,1],[5,1],[6,1],[20,1],[38,1],[45,1],[66,2],[71,1],[80,1],[87,1],[90,4]],"top":"3107 N RACINE AVE"},{"b":"3600 N GREENVIEW AVE","n":16,"r":3,"lat":41.948097,"lon":-87.666193,"med":2.0,"y":6,"f":"2019-05-22","l":"2026-06-29","ms":[[4,2],[5,1],[7,1],[9,3],[20,1],[22,1],[27,1],[49,1],[55,1],[69,1],[87,2],[89,1]],"top":"3635 N GREENVIEW AVE"},{"b":"3500 N BOSWORTH AVE","n":16,"r":0,"lat":41.945814,"lon":-87.667906,"med":5.8,"y":4,"f":"2019-07-25","l":"2022-09-21","ms":[[6,1],[11,2],[16,1],[18,1],[19,1],[21,1],[27,1],[31,1],[32,1],[39,1],[40,1],[42,2],[43,1],[44,1]],"top":"3514 N BOSWORTH AVE"},{"b":"3100 N SHEFFIELD AVE","n":15,"r":1,"lat":41.938911,"lon":-87.65438,"med":3.5,"y":7,"f":"2019-08-19","l":"2025-10-13","ms":[[7,1],[14,2],[16,1],[19,1],[25,2],[31,2],[38,1],[55,2],[56,1],[64,1],[81,1]],"top":"3150 N SHEFFIELD AVE"},{"b":"3800 N GREENVIEW AVE","n":15,"r":0,"lat":41.952212,"lon":-87.66717,"med":5.2,"y":4,"f":"2019-05-03","l":"2022-11-10","ms":[[4,1],[5,1],[8,2],[13,1],[19,1],[29,6],[30,2],[46,1]],"top":"3853 N GREENVIEW AVE"},{"b":"800 W FLETCHER ST","n":15,"r":1,"lat":41.938925,"lon":-87.650923,"med":11.1,"y":5,"f":"2021-05-14","l":"2026-08-07","ms":[[28,2],[31,1],[32,2],[44,1],[45,1],[47,2],[49,1],[53,1],[55,1],[67,1],[69,1],[91,1]],"top":"843 W FLETCHER ST"},{"b":"1200 W SCHOOL ST","n":15,"r":1,"lat":41.941821,"lon":-87.6603,"med":4.1,"y":7,"f":"2019-03-01","l":"2026-06-15","ms":[[2,2],[6,1],[9,1],[17,1],[27,1],[28,1],[30,2],[34,1],[42,2],[54,1],[74,1],[89,1]],"top":"1230 W SCHOOL ST"},{"b":"500 W MELROSE ST","n":15,"r":1,"lat":41.941022,"lon":-87.643647,"med":2.7,"y":6,"f":"2019-06-01","l":"2026-06-13","ms":[[5,3],[6,1],[8,2],[9,2],[27,2],[39,1],[43,1],[50,1],[78,1],[89,1]],"top":"545 W MELROSE ST"},{"b":"800 W GEORGE ST","n":15,"r":3,"lat":41.934393,"lon":-87.649768,"med":3.6,"y":7,"f":"2019-07-29","l":"2026-07-12","ms":[[6,1],[7,1],[9,1],[11,1],[15,2],[43,1],[53,1],[58,1],[59,1],[60,1],[73,1],[84,1],[89,1],[90,1]],"top":"814 W GEORGE ST"},{"b":"1200 W EDDY ST","n":15,"r":0,"lat":41.946435,"lon":-87.660526,"med":4.7,"y":5,"f":"2019-12-15","l":"2024-05-15","ms":[[11,2],[17,4],[18,2],[19,1],[30,1],[48,1],[50,2],[64,2]],"top":"1232 W EDDY ST"},{"b":"1000 W BARRY AVE","n":14,"r":0,"lat":41.938041,"lon":-87.65591,"med":8.0,"y":3,"f":"2020-04-30","l":"2022-09-06","ms":[[15,1],[16,1],[21,1],[29,1],[30,1],[38,3],[39,1],[41,1],[42,1],[43,2],[44,1]],"top":"1045 W BARRY AVE"},{"b":"3400 N CLARK ST","n":14,"r":1,"lat":41.944913,"lon":-87.655027,"med":4.0,"y":6,"f":"2019-04-30","l":"2026-04-20","ms":[[3,1],[4,1],[8,2],[9,1],[11,2],[18,1],[26,1],[46,1],[53,1],[58,2],[87,1]],"top":"3458 N CLARK ST"},{"b":"900 W OAKDALE AVE","n":14,"r":2,"lat":41.935374,"lon":-87.652459,"med":7.3,"y":7,"f":"2019-06-27","l":"2026-05-05","ms":[[5,1],[17,1],[20,1],[31,1],[54,1],[61,1],[69,1],[71,1],[76,1],[78,1],[79,2],[80,1],[88,1]],"top":"901 W OAKDALE AVE"},{"b":"800 W ADDISON ST","n":14,"r":1,"lat":41.947139,"lon":-87.651309,"med":2.0,"y":7,"f":"2019-07-02","l":"2026-05-04","ms":[[6,1],[14,1],[33,1],[50,1],[56,1],[57,1],[68,1],[71,1],[74,2],[75,1],[76,1],[77,1],[88,1]],"top":"855 W ADDISON ST"},{"b":"3300 N RACINE AVE","n":14,"r":1,"lat":41.942702,"lon":-87.659237,"med":13.1,"y":6,"f":"2019-09-12","l":"2026-08-05","ms":[[8,1],[21,1],[27,1],[28,1],[30,1],[33,3],[35,1],[42,1],[44,1],[45,1],[63,1],[91,1]],"top":"3339 N RACINE AVE"},{"b":"3100 N HALSTED ST","n":14,"r":3,"lat":41.939577,"lon":-87.648961,"med":3.8,"y":6,"f":"2019-09-09","l":"2026-06-03","ms":[[8,1],[20,1],[22,1],[30,1],[48,2],[56,1],[57,1],[74,1],[75,1],[76,1],[80,1],[82,1],[89,1]],"top":"3161 N HALSTED ST"},{"b":"1100 W BELMONT AVE","n":14,"r":4,"lat":41.939957,"lon":-87.657327,"med":9.6,"y":6,"f":"2020-07-13","l":"2026-07-28","ms":[[18,1],[21,2],[28,1],[55,1],[68,1],[70,1],[72,1],[78,1],[79,1],[90,4]],"top":"1114 W BELMONT AVE"},{"b":"1200 W BELMONT AVE","n":13,"r":1,"lat":41.940081,"lon":-87.660266,"med":4.8,"y":6,"f":"2019-09-06","l":"2025-11-17","ms":[[8,3],[12,1],[31,1],[45,1],[47,1],[51,1],[55,1],[56,1],[58,1],[77,1],[82,1]],"top":"1232 W BELMONT AVE"},{"b":"900 W CORNELIA AVE","n":13,"r":2,"lat":41.94499,"lon":-87.653052,"med":5.7,"y":6,"f":"2019-03-08","l":"2026-07-31","ms":[[2,3],[8,1],[13,1],[21,1],[33,1],[56,1],[76,1],[79,2],[90,2]],"top":"931 W CORNELIA AVE"},{"b":"3300 N HALSTED ST","n":13,"r":0,"lat":41.942513,"lon":-87.649393,"med":4.2,"y":5,"f":"2019-08-14","l":"2024-09-12","ms":[[7,2],[8,3],[9,2],[18,1],[21,2],[38,1],[55,1],[68,1]],"top":"3343 N HALSTED ST"},{"b":"1400 W CORNELIA AVE","n":13,"r":1,"lat":41.945267,"lon":-87.664518,"med":2.6,"y":6,"f":"2019-03-25","l":"2026-05-11","ms":[[2,1],[10,1],[11,1],[16,1],[18,1],[20,1],[24,1],[28,1],[30,1],[45,1],[55,1],[59,1],[88,1]],"top":"1410 W CORNELIA AVE"},{"b":"800 W WELLINGTON AVE","n":13,"r":0,"lat":41.936112,"lon":-87.649821,"med":9.5,"y":5,"f":"2020-07-28","l":"2024-08-26","ms":[[18,1],[33,1],[34,1],[41,1],[47,1],[48,1],[55,2],[56,1],[58,1],[59,1],[60,1],[67,1]],"top":"815 W WELLINGTON AVE"},{"b":"500 W STRATFORD PL","n":13,"r":0,"lat":41.945526,"lon":-87.642855,"med":5.9,"y":5,"f":"2020-12-30","l":"2024-07-29","ms":[[23,1],[28,1],[34,1],[44,1],[53,1],[56,1],[57,1],[58,1],[62,1],[64,1],[65,2],[66,1]],"top":"525 W STRATFORD PL"},{"b":"3100 N PINE GROVE AVE","n":12,"r":5,"lat":41.939514,"lon":-87.64173,"med":6.5,"y":3,"f":"2021-08-21","l":"2026-08-06","ms":[[31,1],[32,1],[33,1],[77,1],[78,1],[79,2],[89,1],[90,2],[91,2]],"top":"3163 N PINE GROVE AVE"},{"b":"3400 N GREENVIEW AVE","n":12,"r":0,"lat":41.944436,"lon":-87.666122,"med":5.6,"y":4,"f":"2019-06-07","l":"2022-09-21","ms":[[5,1],[6,3],[7,1],[18,1],[21,1],[26,1],[31,1],[32,1],[39,1],[44,1]],"top":"3434 N GREENVIEW AVE"},{"b":"3600 N ASHLAND AVE","n":12,"r":0,"lat":41.947677,"lon":-87.668522,"med":4.2,"y":4,"f":"2019-07-14","l":"2022-08-26","ms":[[6,1],[11,1],[14,1],[17,1],[19,1],[28,1],[31,1],[34,1],[38,2],[39,1],[43,1]],"top":"3621 N ASHLAND AVE"},{"b":"1400 W WAVELAND AVE","n":12,"r":0,"lat":41.948955,"lon":-87.665395,"med":9.3,"y":6,"f":"2019-08-12","l":"2025-08-14","ms":[[7,1],[10,1],[20,1],[30,1],[33,1],[49,1],[50,1],[54,1],[55,1],[56,1],[70,1],[79,1]],"top":"1443 W WAVELAND AVE"},{"b":"3300 N BROADWAY ST","n":12,"r":0,"lat":41.943505,"lon":-87.645042,"med":6.1,"y":5,"f":"2019-07-03","l":"2024-09-19","ms":[[6,2],[8,1],[13,1],[16,1],[20,1],[22,1],[30,1],[40,1],[42,1],[63,1],[68,1]],"top":"3358 N BROADWAY ST"},{"b":"2900 N BURLING ST","n":12,"r":2,"lat":41.93496,"lon":-87.647621,"med":6.2,"y":6,"f":"2021-09-11","l":"2026-06-10","ms":[[32,1],[34,2],[41,1],[53,1],[60,1],[62,1],[64,1],[68,1],[77,1],[89,2]],"top":"2913 N BURLING ST"},{"b":"500 W BARRY AVE","n":12,"r":2,"lat":41.937489,"lon":-87.642666,"med":9.7,"y":7,"f":"2019-10-23","l":"2026-08-18","ms":[[9,1],[20,1],[42,1],[57,1],[60,1],[69,1],[73,1],[77,1],[78,1],[79,1],[80,1],[91,1]],"top":"515 W BARRY AVE"},{"b":"3000 N WATERLOO CT","n":12,"r":1,"lat":41.937095,"lon":-87.646048,"med":11.2,"y":5,"f":"2021-06-17","l":"2025-11-15","ms":[[29,1],[31,1],[33,1],[34,1],[36,1],[54,1],[55,1],[69,1],[72,1],[73,1],[77,1],[82,1]],"top":"3024 N WATERLOO CT"},{"b":"1400 W BYRON ST","n":11,"r":0,"lat":41.952293,"lon":-87.666859,"med":4.1,"y":3,"f":"2019-06-30","l":"2021-10-23","ms":[[5,1],[6,2],[8,2],[12,1],[18,2],[30,1],[32,1],[33,1]],"top":"1471 W BYRON ST"},{"b":"3000 N CLARK ST","n":11,"r":1,"lat":41.937426,"lon":-87.648265,"med":6.5,"y":4,"f":"2022-04-07","l":"2026-05-09","ms":[[39,1],[43,2],[44,1],[46,1],[48,1],[49,1],[56,1],[57,1],[60,1],[88,1]],"top":"3037 N CLARK ST"},{"b":"3800 N RACINE AVE","n":11,"r":0,"lat":41.95192,"lon":-87.659514,"med":6.7,"y":4,"f":"2019-08-12","l":"2025-04-15","ms":[[7,1],[8,1],[29,1],[31,4],[32,1],[51,1],[56,1],[75,1]],"top":"3828 N RACINE AVE"},{"b":"3700 N ASHLAND AVE","n":11,"r":0,"lat":41.949361,"lon":-87.668542,"med":16.4,"y":3,"f":"2019-09-25","l":"2022-10-17","ms":[[8,1],[26,1],[31,2],[33,1],[41,1],[42,2],[43,1],[44,1],[45,1]],"top":"3717 N ASHLAND AVE"},{"b":"1300 W SCHOOL ST","n":11,"r":2,"lat":41.941791,"lon":-87.662256,"med":1.5,"y":5,"f":"2019-06-24","l":"2026-08-14","ms":[[5,1],[11,1],[12,1],[13,1],[14,1],[39,1],[74,2],[77,1],[79,1],[91,1]],"top":"1316 W SCHOOL ST"},{"b":"2800 N SEMINARY AVE","n":11,"r":1,"lat":41.933008,"lon":-87.656549,"med":1.8,"y":7,"f":"2019-05-20","l":"2026-08-22","ms":[[4,1],[14,1],[15,2],[16,1],[43,1],[52,2],[71,1],[74,1],[91,1]],"top":"2810 N SEMINARY AVE"},{"b":"500 W ROSCOE ST","n":11,"r":1,"lat":41.943618,"lon":-87.642643,"med":17.0,"y":4,"f":"2020-11-30","l":"2025-10-01","ms":[[22,1],[31,2],[32,2],[33,1],[34,1],[45,1],[76,1],[77,1],[81,1]],"top":"516 W ROSCOE ST"},{"b":"2900 N HALSTED ST","n":10,"r":1,"lat":41.935896,"lon":-87.648978,"med":0.9,"y":6,"f":"2019-03-19","l":"2026-01-21","ms":[[2,1],[25,1],[32,1],[53,2],[63,1],[65,1],[74,1],[78,1],[84,1]],"top":"2904 N HALSTED ST"},{"b":"400 W ROSCOE ST","n":10,"r":0,"lat":41.943087,"lon":-87.641813,"med":10.4,"y":2,"f":"2023-07-24","l":"2024-10-22","ms":[[54,1],[56,2],[57,1],[63,1],[65,1],[66,1],[67,1],[69,2]],"top":"433 W ROSCOE ST"},{"b":"900 W GEORGE ST","n":10,"r":1,"lat":41.934497,"lon":-87.652818,"med":8.6,"y":4,"f":"2020-09-03","l":"2026-01-15","ms":[[20,1],[55,1],[64,1],[67,4],[68,2],[84,1]],"top":"933 W GEORGE ST"},{"b":"3200 N DAYTON ST","n":10,"r":1,"lat":41.940525,"lon":-87.650244,"med":4.8,"y":6,"f":"2019-09-11","l":"2026-06-22","ms":[[8,1],[9,2],[22,1],[29,1],[30,1],[47,1],[52,1],[54,1],[89,1]],"top":"3215 N DAYTON ST"},{"b":"1000 W DIVERSEY AVE","n":10,"r":2,"lat":41.932832,"lon":-87.655329,"med":8.1,"y":4,"f":"2022-12-01","l":"2026-06-04","ms":[[47,1],[69,4],[77,2],[78,1],[89,2]],"top":"1024 W DIVERSEY AVE"},{"b":"1400 W ADDISON ST","n":10,"r":7,"lat":41.947278,"lon":-87.665985,"med":1.0,"y":3,"f":"2021-05-06","l":"2026-08-18","ms":[[28,2],[75,1],[86,1],[87,1],[91,5]],"top":"1448 W ADDISON ST"},{"b":"400 W DIVERSEY AVE","n":10,"r":0,"lat":41.933088,"lon":-87.640441,"med":12.1,"y":3,"f":"2022-11-17","l":"2024-09-27","ms":[[46,3],[50,1],[56,2],[58,2],[59,1],[68,1]],"top":"430 W DIVERSEY AVE"},{"b":"500 W HAWTHORNE PL","n":9,"r":2,"lat":41.944418,"lon":-87.64336,"med":13.1,"y":3,"f":"2020-09-15","l":"2025-11-24","ms":[[20,1],[29,2],[30,3],[31,1],[82,2]],"top":"588 W HAWTHORNE PL"},{"b":"2900 N BROADWAY ST","n":9,"r":0,"lat":41.935738,"lon":-87.644528,"med":4.9,"y":3,"f":"2020-12-11","l":"2022-05-04","ms":[[23,1],[29,1],[33,3],[39,1],[40,3]],"top":"2924 N BROADWAY ST"},{"b":"1500 W ADDISON ST","n":9,"r":0,"lat":41.947051,"lon":-87.667373,"med":1.9,"y":3,"f":"2019-06-13","l":"2022-05-05","ms":[[5,1],[6,2],[25,1],[26,1],[38,3],[40,1]],"top":"1521 W ADDISON ST"},{"b":"3600 N HALSTED ST","n":9,"r":5,"lat":41.948559,"lon":-87.64991,"med":6.9,"y":3,"f":"2020-06-29","l":"2026-07-25","ms":[[17,1],[18,1],[21,1],[76,1],[87,2],[90,3]],"top":"3640 N HALSTED ST"},{"b":"3500 N CLARK ST","n":9,"r":0,"lat":41.945979,"lon":-87.655318,"med":4.0,"y":6,"f":"2019-06-06","l":"2025-05-26","ms":[[5,1],[7,1],[14,1],[24,2],[33,1],[44,1],[56,1],[76,1]],"top":"3505 N CLARK ST"},{"b":"2900 N PINE GROVE AVE","n":9,"r":0,"lat":41.935086,"lon":-87.641527,"med":12.1,"y":3,"f":"2022-07-18","l":"2025-05-08","ms":[[42,2],[43,1],[47,1],[49,1],[54,2],[57,1],[76,1]],"top":"2925 N PINE GROVE AVE"},{"b":"2800 N BROADWAY","n":8,"r":0,"lat":41.935032,"lon":-87.644007,"med":7.4,"y":3,"f":"2019-05-16","l":"2024-10-21","ms":[[4,1],[48,1],[51,1],[53,1],[56,1],[57,1],[58,1],[69,1]],"top":"2873 N BROADWAY"},{"b":"3200 N GREENVIEW AVE","n":8,"r":0,"lat":41.94125,"lon":-87.66615,"med":8.0,"y":3,"f":"2019-04-11","l":"2021-10-20","ms":[[3,1],[4,1],[5,1],[8,1],[21,1],[30,1],[32,1],[33,1]],"top":"3255 N GREENVIEW AVE"},{"b":"400 W BELMONT AVE","n":8,"r":0,"lat":41.940121,"lon":-87.641741,"med":2.9,"y":5,"f":"2019-06-25","l":"2025-01-21","ms":[[5,1],[8,1],[17,1],[28,2],[70,1],[72,2]],"top":"474 W BELMONT AVE"},{"b":"500 W DIVERSEY PKWY","n":8,"r":2,"lat":41.932931,"lon":-87.642251,"med":2.0,"y":5,"f":"2022-04-05","l":"2026-07-14","ms":[[39,1],[42,1],[50,1],[52,1],[63,1],[77,1],[84,1],[90,1]],"top":"522 W DIVERSEY PKWY"},{"b":"1300 W GRACE ST","n":8,"r":3,"lat":41.951178,"lon":-87.663389,"med":3.9,"y":4,"f":"2021-01-27","l":"2026-05-30","ms":[[24,1],[34,1],[54,1],[60,1],[71,1],[88,3]],"top":"1340 W GRACE ST"},{"b":"3200 N BROADWAY ST","n":8,"r":0,"lat":41.941325,"lon":-87.64442,"med":3.6,"y":4,"f":"2019-07-26","l":"2022-06-03","ms":[[6,1],[8,1],[9,1],[13,1],[19,1],[28,1],[32,1],[41,1]],"top":"3252 N BROADWAY ST"},{"b":"1000 W GRACE ST","n":8,"r":0,"lat":41.950954,"lon":-87.655417,"med":2.1,"y":4,"f":"2021-05-05","l":"2025-06-02","ms":[[28,1],[33,1],[40,1],[71,1],[74,3],[77,1]],"top":"1003 W GRACE ST"},{"b":"3400 N SOUTHPORT AVE","n":7,"r":0,"lat":41.943572,"lon":-87.66367,"med":3.7,"y":3,"f":"2019-06-24","l":"2024-05-11","ms":[[5,1],[6,2],[7,1],[22,1],[62,1],[64,1]],"top":"3401 N SOUTHPORT AVE"},{"b":"2900 N COMMONWEALTH AVE","n":7,"r":0,"lat":41.935315,"lon":-87.638095,"med":3.7,"y":3,"f":"2021-04-08","l":"2024-02-27","ms":[[27,3],[55,1],[57,1],[59,1],[61,1]],"top":"2930 N COMMONWEALTH AVE"},{"b":"1200 W ADDISON ST","n":7,"r":0,"lat":41.946907,"lon":-87.661008,"med":6.7,"y":5,"f":"2019-04-08","l":"2023-04-03","ms":[[3,1],[4,1],[8,1],[20,1],[30,1],[45,1],[51,1]],"top":"1254 W ADDISON ST"},{"b":"1300 W WAVELAND AVE","n":7,"r":0,"lat":41.948748,"lon":-87.663056,"med":1.9,"y":5,"f":"2019-05-06","l":"2025-08-14","ms":[[4,1],[17,1],[27,1],[63,2],[64,1],[79,1]],"top":"1341 W WAVELAND AVE"},{"b":"1400 W BELMONT AVE","n":7,"r":0,"lat":41.939968,"lon":-87.664721,"med":3.0,"y":3,"f":"2019-06-14","l":"2022-06-09","ms":[[5,1],[7,2],[9,1],[11,1],[28,1],[41,1]],"top":"1420 W BELMONT AVE"},{"b":"3700 N BOSWORTH AVE","n":7,"r":0,"lat":41.949397,"lon":-87.667977,"med":6.1,"y":4,"f":"2019-09-26","l":"2022-03-18","ms":[[8,2],[18,1],[31,1],[32,1],[33,1],[38,1]],"top":"3724 N BOSWORTH AVE"},{"b":"3600 N RACINE AVE","n":7,"r":0,"lat":41.948685,"lon":-87.659487,"med":4.8,"y":3,"f":"2019-05-12","l":"2024-07-18","ms":[[4,1],[7,1],[9,1],[52,1],[56,1],[65,1],[66,1]],"top":"3650 N RACINE AVE"},{"b":"3100 N ORCHARD ST","n":7,"r":1,"lat":41.938952,"lon":-87.646629,"med":5.2,"y":5,"f":"2019-09-06","l":"2026-02-27","ms":[[8,1],[14,1],[20,1],[43,1],[50,1],[56,1],[85,1]],"top":"3117 N ORCHARD ST"},{"b":"800 W WAVELAND AVE","n":7,"r":1,"lat":41.948501,"lon":-87.651411,"med":6.9,"y":4,"f":"2019-07-30","l":"2026-08-03","ms":[[6,1],[15,1],[38,1],[43,1],[44,1],[46,1],[91,1]],"top":"851 W WAVELAND AVE"},{"b":"1100 W DIVERSEY AVE","n":7,"r":3,"lat":41.932827,"lon":-87.657669,"med":7.7,"y":4,"f":"2023-05-18","l":"2026-08-22","ms":[[52,1],[69,1],[70,1],[79,1],[90,1],[91,2]],"top":"1148 W DIVERSEY AVE"},{"b":"1500 W ROSCOE ST","n":7,"r":0,"lat":41.943188,"lon":-87.666845,"med":6.5,"y":3,"f":"2020-08-08","l":"2022-09-22","ms":[[19,4],[20,1],[31,1],[44,1]],"top":"1511 W ROSCOE ST"},{"b":"3000 N SHERIDAN RD","n":7,"r":0,"lat":41.937301,"lon":-87.639872,"med":1.9,"y":2,"f":"2022-08-31","l":"2024-09-15","ms":[[43,1],[60,2],[63,2],[68,2]],"top":"3018 N SHERIDAN RD"},{"b":"1000 W DIVERSEY PKWY","n":6,"r":0,"lat":41.932702,"lon":-87.65473,"med":7.8,"y":4,"f":"2019-06-18","l":"2025-07-24","ms":[[5,1],[33,1],[67,1],[69,1],[77,1],[78,1]],"top":"1016 W DIVERSEY PKWY"},{"b":"1300 W BYRON ST","n":6,"r":2,"lat":41.952402,"lon":-87.663315,"med":4.9,"y":4,"f":"2019-10-22","l":"2026-08-05","ms":[[9,1],[20,1],[62,1],[66,1],[86,1],[91,1]],"top":"1343 W BYRON ST"},{"b":"400 W ALDINE AVE","n":6,"r":2,"lat":41.942463,"lon":-87.64153,"med":10.2,"y":5,"f":"2019-06-25","l":"2026-07-15","ms":[[5,1],[44,1],[52,1],[57,1],[80,1],[90,1]],"top":"420 W ALDINE AVE"},{"b":"1200 W WAVELAND AVE","n":6,"r":0,"lat":41.948833,"lon":-87.65967,"med":7.9,"y":3,"f":"2020-01-07","l":"2024-08-26","ms":[[12,1],[20,1],[21,1],[54,1],[65,1],[67,1]],"top":"1267 W WAVELAND AVE"},{"b":"300 W WELLINGTON AVE","n":5,"r":0,"lat":41.936238,"lon":-87.638256,"med":1.1,"y":3,"f":"2019-04-01","l":"2025-02-25","ms":[[3,2],[9,1],[21,1],[73,1]],"top":"333 W WELLINGTON AVE"},{"b":"3100 N SHERIDAN RD","n":5,"r":0,"lat":41.938632,"lon":-87.639813,"med":15.0,"y":2,"f":"2019-05-29","l":"2023-09-12","ms":[[4,1],[9,1],[54,1],[56,2]],"top":"3122 N SHERIDAN RD"},{"b":"700 W WELLINGTON AVE","n":5,"r":2,"lat":41.936666,"lon":-87.647,"med":1.7,"y":3,"f":"2021-01-06","l":"2026-07-14","ms":[[24,1],[61,1],[68,1],[84,1],[90,1]],"top":"702 W WELLINGTON AVE"},{"b":"800 W BELMONT AVE","n":5,"r":1,"lat":41.940144,"lon":-87.650231,"med":13.6,"y":3,"f":"2022-08-01","l":"2026-04-15","ms":[[43,1],[45,1],[52,1],[54,1],[87,1]],"top":"826 W BELMONT AVE"},{"b":"3700 N SEMINARY AVE","n":5,"r":0,"lat":41.95026,"lon":-87.656459,"med":4.2,"y":4,"f":"2020-11-02","l":"2025-07-28","ms":[[22,1],[45,1],[49,1],[50,1],[78,1]],"top":"3741 N SEMINARY AVE"},{"b":"400 W MELROSE ST","n":5,"r":0,"lat":41.940976,"lon":-87.641583,"med":4.9,"y":2,"f":"2021-02-02","l":"2025-07-13","ms":[[25,1],[28,1],[29,2],[78,1]],"top":"451 W MELROSE ST"},{"b":"3300 N LAKE SHORE DR","n":5,"r":0,"lat":41.942736,"lon":-87.640619,"med":14.2,"y":3,"f":"2021-09-14","l":"2023-10-22","ms":[[32,1],[44,1],[50,1],[53,1],[57,1]],"top":"3330 N LAKE SHORE DR"},{"b":"2900 N CLARK ST","n":5,"r":0,"lat":41.935453,"lon":-87.647077,"med":4.0,"y":2,"f":"2022-05-17","l":"2023-09-25","ms":[[40,1],[43,1],[46,1],[53,1],[56,1]],"top":"2924 N CLARK ST"},{"b":"2900 N MILDRED AVE","n":4,"r":0,"lat":41.934629,"lon":-87.652289,"med":1.4,"y":2,"f":"2019-10-15","l":"2020-01-29","ms":[[9,1],[12,3]],"top":"2900 N MILDRED AVE"},{"b":"1000 W WAVELAND AVE","n":4,"r":0,"lat":41.949248,"lon":-87.656383,"med":1.5,"y":2,"f":"2019-08-06","l":"2020-05-26","ms":[[7,2],[16,2]],"top":"1052 W WAVELAND AVE"},{"b":"2800 N SHERIDAN RD","n":4,"r":0,"lat":41.933275,"lon":-87.639721,"med":7.2,"y":1,"f":"2022-05-17","l":"2022-08-31","ms":[[40,2],[42,1],[43,1]],"top":"2818 N SHERIDAN RD"},{"b":"700 W DIVERSEY PKWY","n":4,"r":0,"lat":41.932884,"lon":-87.647264,"med":3.5,"y":3,"f":"2019-06-14","l":"2023-05-23","ms":[[5,1],[32,1],[48,1],[52,1]],"top":"712 W DIVERSEY PKWY"},{"b":"300 W OAKDALE AVE","n":4,"r":1,"lat":41.935834,"lon":-87.638494,"med":5.4,"y":3,"f":"2019-03-29","l":"2025-10-05","ms":[[2,1],[26,1],[29,1],[81,1]],"top":"332 W OAKDALE AVE"},{"b":"900 W WELLINGTON AVE","n":4,"r":0,"lat":41.936481,"lon":-87.653466,"med":4.6,"y":2,"f":"2019-07-15","l":"2021-08-23","ms":[[6,1],[8,1],[9,1],[31,1]],"top":"946 W WELLINGTON AVE"},{"b":"500 W DIVERSEY AVE","n":4,"r":1,"lat":41.933142,"lon":-87.642536,"med":2.3,"y":3,"f":"2023-04-05","l":"2026-03-02","ms":[[51,1],[56,1],[61,1],[86,1]],"top":"530 W DIVERSEY AVE"},{"b":"3400 N BROADWAY ST","n":4,"r":0,"lat":41.944622,"lon":-87.645989,"med":3.0,"y":4,"f":"2019-11-15","l":"2024-01-28","ms":[[10,1],[17,1],[32,1],[60,1]],"top":"3460 N BROADWAY ST"},{"b":"3400 N RACINE AVE","n":4,"r":1,"lat":41.944481,"lon":-87.658958,"med":4.6,"y":3,"f":"2020-10-13","l":"2025-09-03","ms":[[21,1],[27,1],[75,1],[80,1]],"top":"3417 N RACINE AVE"},{"b":"600 W STRATFORD PL","n":4,"r":0,"lat":41.944896,"lon":-87.645182,"med":1.6,"y":3,"f":"2020-11-18","l":"2024-02-12","ms":[[22,1],[49,1],[61,2]],"top":"623 W STRATFORD PL"},{"b":"2900 N BROADWAY","n":4,"r":1,"lat":41.935217,"lon":-87.644338,"med":6.4,"y":4,"f":"2022-06-13","l":"2025-11-08","ms":[[41,1],[49,1],[67,1],[82,1]],"top":"2906 N BROADWAY"},{"b":"700 W DIVERSEY AVE","n":4,"r":0,"lat":41.932953,"lon":-87.647468,"med":8.0,"y":1,"f":"2023-05-15","l":"2023-08-09","ms":[[52,1],[53,2],[55,1]],"top":"722 W DIVERSEY AVE"},{"b":"3300 N GREENVIEW AVE","n":3,"r":0,"lat":41.941927,"lon":-87.666471,"med":11.9,"y":2,"f":"2021-10-20","l":"2022-08-06","ms":[[33,2],[43,1]],"top":"3308 N GREENVIEW AVE"},{"b":"3200 N ASHLAND AVE","n":3,"r":0,"lat":41.940764,"lon":-87.668656,"med":7.0,"y":1,"f":"2022-08-24","l":"2022-09-09","ms":[[43,2],[44,1]],"top":"3235 N ASHLAND AVE"},{"b":"1500 W WAVELAND AVE","n":3,"r":0,"lat":41.948805,"lon":-87.668235,"med":19.8,"y":2,"f":"2019-04-28","l":"2021-07-14","ms":[[3,1],[30,2]],"top":"1551 W WAVELAND AVE"},{"b":"3800 N SEMINARY AVE","n":3,"r":1,"lat":41.952217,"lon":-87.656878,"med":3.1,"y":2,"f":"2019-06-26","l":"2026-07-06","ms":[[5,1],[7,1],[90,1]],"top":"3836 N SEMINARY AVE"},{"b":"1000 W ADDISON ST","n":3,"r":2,"lat":41.947641,"lon":-87.656382,"med":2.0,"y":2,"f":"2019-04-02","l":"2026-04-23","ms":[[3,1],[87,2]],"top":"1060 W ADDISON ST"},{"b":"1100 W WAVELAND AVE","n":3,"r":0,"lat":41.948755,"lon":-87.658664,"med":3.6,"y":3,"f":"2019-10-07","l":"2022-10-05","ms":[[9,1],[27,1],[45,1]],"top":"1147 W WAVELAND AVE"},{"b":"3500 N LAKEWOOD AVE","n":3,"r":1,"lat":41.945829,"lon":-87.661731,"med":6.1,"y":3,"f":"2020-10-16","l":"2026-08-02","ms":[[21,1],[72,1],[91,1]],"top":"3538 N LAKEWOOD AVE"},{"b":"1500 W GRACE ST","n":3,"r":0,"lat":41.95047,"lon":-87.667362,"med":11.7,"y":2,"f":"2019-09-25","l":"2022-07-11","ms":[[8,1],[40,1],[42,1]],"top":"1519 W GRACE ST"},{"b":"3000 N PINE GROVE AVE","n":3,"r":0,"lat":41.937201,"lon":-87.642167,"med":4.4,"y":3,"f":"2020-04-08","l":"2025-01-13","ms":[[15,1],[56,1],[72,1]],"top":"3020 N PINE GROVE AVE"},{"b":"1100 W SCHOOL ST","n":3,"r":0,"lat":41.941679,"lon":-87.657164,"med":3.2,"y":3,"f":"2020-07-18","l":"2025-04-07","ms":[[18,1],[41,1],[75,1]],"top":"1109 W SCHOOL ST"},{"b":"800 W DIVERSEY AVE","n":3,"r":0,"lat":41.932971,"lon":-87.650051,"med":1.0,"y":2,"f":"2023-01-12","l":"2025-04-07","ms":[[48,2],[75,1]],"top":"828 W DIVERSEY AVE"},{"b":"600 W DIVERSEY PKWY","n":2,"r":0,"lat":41.932959,"lon":-87.645607,"med":3.5,"y":2,"f":"2019-04-05","l":"2022-05-13","ms":[[3,1],[40,1]],"top":"620 W DIVERSEY PKWY"},{"b":"900 W GRACE ST","n":2,"r":0,"lat":41.951016,"lon":-87.653763,"med":9.5,"y":2,"f":"2019-06-19","l":"2022-09-29","ms":[[5,1],[44,1]],"top":"949 W GRACE ST"},{"b":"3000 N HALSTED ST","n":2,"r":1,"lat":41.937327,"lon":-87.649434,"med":12.4,"y":2,"f":"2023-10-02","l":"2026-06-16","ms":[[57,1],[89,1]],"top":"3017 N HALSTED ST"},{"b":"800 W DIVERSEY PKWY","n":2,"r":0,"lat":41.932948,"lon":-87.650418,"med":1.3,"y":2,"f":"2019-11-12","l":"2020-03-16","ms":[[10,1],[14,1]],"top":"850 W DIVERSEY PKWY"},{"b":"1000 W SCHOOL ST","n":2,"r":0,"lat":41.941742,"lon":-87.654739,"med":9.8,"y":2,"f":"2020-02-21","l":"2022-07-19","ms":[[13,1],[42,1]],"top":"1024 W SCHOOL ST"},{"b":"700 W CALIFORNIA TER","n":2,"r":0,"lat":41.93855,"lon":-87.648628,"med":7.6,"y":2,"f":"2020-09-25","l":"2025-02-04","ms":[[20,1],[73,1]],"top":"738 W CALIFORNIA TER"},{"b":"3600 N SHEFFIELD AVE","n":2,"r":0,"lat":41.948749,"lon":-87.654019,"med":14.9,"y":2,"f":"2020-10-08","l":"2023-10-15","ms":[[21,1],[57,1]],"top":"3645 N SHEFFIELD AVE"},{"b":"300 W SURF ST","n":2,"r":0,"lat":41.934497,"lon":-87.638457,"med":0.9,"y":1,"f":"2021-03-25","l":"2021-04-08","ms":[[26,1],[27,1]],"top":"340 W SURF ST"},{"b":"2800 N BROADWAY ST","n":2,"r":0,"lat":41.935035,"lon":-87.644005,"med":11.2,"y":1,"f":"2021-04-22","l":"2021-09-27","ms":[[27,1],[32,1]],"top":"2873 N BROADWAY ST"},{"b":"3000 N LAKE SHORE DR","n":2,"r":0,"lat":41.93765,"lon":-87.63752,"med":10.8,"y":2,"f":"2021-07-19","l":"2024-02-19","ms":[[30,1],[61,1]],"top":"3030 N LAKE SHORE DR"},{"b":"3400 N ASHLAND AVE","n":2,"r":0,"lat":41.944552,"lon":-87.668424,"med":9.0,"y":2,"f":"2021-11-22","l":"2022-09-08","ms":[[34,1],[44,1]],"top":"3427 N ASHLAND AVE"},{"b":"917I W ROSCOE ST","n":2,"r":0,"lat":41.943198,"lon":-87.652468,"med":15.9,"y":1,"f":"2022-07-20","l":"2022-08-09","ms":[[42,1],[43,1]],"top":"917I W ROSCOE ST"},{"b":"3600 N CLARK ST","n":2,"r":0,"lat":41.948676,"lon":-87.658011,"med":5.2,"y":2,"f":"2022-11-09","l":"2024-12-15","ms":[[46,1],[71,1]],"top":"3660 N CLARK ST"},{"b":"3200 1/2 N WILTON AVE","n":2,"r":0,"lat":41.940729,"lon":-87.652292,"med":14.2,"y":2,"f":"2022-11-18","l":"2023-08-11","ms":[[46,1],[55,1]],"top":"3225 1/2 N WILTON AVE"},{"b":"900 W DIVERSEY AVE","n":2,"r":0,"lat":41.932872,"lon":-87.651648,"med":11.5,"y":2,"f":"2022-11-29","l":"2023-08-18","ms":[[46,1],[55,1]],"top":"902 W DIVERSEY AVE"},{"b":"900 W DIVERSEY PKWY","n":2,"r":0,"lat":41.932757,"lon":-87.651636,"med":12.5,"y":2,"f":"2022-11-29","l":"2023-09-20","ms":[[46,1],[56,1]],"top":"904 W DIVERSEY PKWY"},{"b":"300 W BARRY AVE","n":2,"r":0,"lat":41.938047,"lon":-87.638783,"med":16.0,"y":1,"f":"2023-09-28","l":"2023-12-04","ms":[[56,1],[59,1]],"top":"340 W BARRY AVE"},{"b":"3800 N LAKEWOOD","n":2,"r":1,"lat":41.952236,"lon":-87.661494,"med":6.5,"y":2,"f":"2025-07-25","l":"2026-01-09","ms":[[78,1],[84,1]],"top":"3837 N LAKEWOOD"},{"b":"3100 N LAKE SHORE DR SB","n":2,"r":2,"lat":41.939743,"lon":-87.637938,"med":8.4,"y":1,"f":"2025-09-18","l":"2025-10-24","ms":[[80,1],[81,1]],"top":"3156 N LAKE SHORE DR SB"},{"b":"3700 N GREENVIEW","n":2,"r":2,"lat":41.949882,"lon":-87.66626,"med":4.8,"y":1,"f":"2025-10-31","l":"2025-10-31","ms":[[81,2]],"top":"3733 N GREENVIEW"},{"b":"3117B N ORCHARD ST","n":1,"r":0,"lat":41.938587,"lon":-87.646077,"med":1.0,"y":1,"f":"2019-03-28","l":"2019-03-28","ms":[[2,1]],"top":"3117B N ORCHARD ST"},{"b":"3300 N CLIFTON ST","n":1,"r":0,"lat":41.942049,"lon":-87.657708,"med":0.9,"y":1,"f":"2019-02-28","l":"2019-02-28","ms":[[1,1]],"top":"3317 N CLIFTON ST"},{"b":"3200 N SHEFFIELD","n":1,"r":0,"lat":41.940378,"lon":-87.654017,"med":1.1,"y":1,"f":"2019-03-25","l":"2019-03-25","ms":[[2,1]],"top":"3223 N SHEFFIELD"},{"b":"900 W ASDISON ST","n":1,"r":0,"lat":41.947368,"lon":-87.652353,"med":0.7,"y":1,"f":"2019-03-14","l":"2019-03-14","ms":[[2,1]],"top":"910 W ASDISON ST"},{"b":"3400 N BROADWAY","n":1,"r":0,"lat":41.944919,"lon":-87.645829,"med":1.1,"y":1,"f":"2019-12-05","l":"2019-12-05","ms":[[11,1]],"top":"3460 N BROADWAY"},{"b":"3100 N SEMINARY","n":1,"r":1,"lat":41.939424,"lon":-87.65627,"med":2.0,"y":1,"f":"2026-02-18","l":"2026-02-18","ms":[[85,1]],"top":"3145 N SEMINARY"},{"b":"800 W NELSON ST","n":1,"r":1,"lat":41.937507,"lon":-87.651347,"med":3.0,"y":1,"f":"2026-05-11","l":"2026-05-11","ms":[[88,1]],"top":"856 W NELSON ST"},{"b":"800 W GEORGE","n":1,"r":1,"lat":41.934762,"lon":-87.651,"med":4.1,"y":1,"f":"2026-05-28","l":"2026-05-28","ms":[[88,1]],"top":"848 W GEORGE"},{"b":"2700 N DAYTON ST","n":1,"r":0,"lat":41.932704,"lon":-87.650224,"med":4.5,"y":1,"f":"2020-04-01","l":"2020-04-01","ms":[[15,1]],"top":"2759 N DAYTON ST"},{"b":"3000 N BROADWAY ST","n":1,"r":0,"lat":41.937407,"lon":-87.644783,"med":5.1,"y":1,"f":"2020-12-11","l":"2020-12-11","ms":[[23,1]],"top":"3030 N BROADWAY ST"},{"b":"3300A N KENMORE AVE","n":1,"r":0,"lat":41.941732,"lon":-87.655385,"med":2.9,"y":1,"f":"2021-03-20","l":"2021-03-20","ms":[[26,1]],"top":"3300A N KENMORE AVE"},{"b":"3000 N WILTON AVE","n":1,"r":0,"lat":41.937973,"lon":-87.652729,"med":10.5,"y":1,"f":"2021-11-12","l":"2021-11-12","ms":[[34,1]],"top":"3057 N WILTON AVE"},{"b":"3400 N LAKEWOOD AVE","n":1,"r":0,"lat":41.944752,"lon":-87.661346,"med":0.6,"y":1,"f":"2021-12-13","l":"2021-12-13","ms":[[35,1]],"top":"3443 N LAKEWOOD AVE"},{"b":"3500 N ASHLAND AVE","n":1,"r":0,"lat":41.946795,"lon":-87.668532,"med":3.0,"y":1,"f":"2022-04-01","l":"2022-04-01","ms":[[39,1]],"top":"3555 N ASHLAND AVE"},{"b":"2700 N CLARK ST","n":1,"r":0,"lat":41.932808,"lon":-87.644892,"med":25.5,"y":1,"f":"2022-06-16","l":"2022-06-16","ms":[[41,1]],"top":"2754 N CLARK ST"},{"b":"3117D N ORCHARD ST","n":1,"r":0,"lat":41.938543,"lon":-87.645835,"med":14.1,"y":1,"f":"2022-10-03","l":"2022-10-03","ms":[[45,1]],"top":"3117D N ORCHARD ST"},{"b":"800 N WOLFRAM AVE","n":1,"r":0,"lat":41.933349,"lon":-87.650415,"med":1.0,"y":1,"f":"2023-01-24","l":"2023-01-24","ms":[[48,1]],"top":"833 N WOLFRAM AVE"},{"b":"2800 N LAKE SHORE(W) DR","n":1,"r":0,"lat":41.93434,"lon":-87.636574,"med":22.2,"y":1,"f":"2023-09-18","l":"2023-09-18","ms":[[56,1]],"top":"2849 N LAKE SHORE(W) DR"},{"b":"2100 N BURLING ST","n":1,"r":0,"lat":41.9355,"lon":-87.64785,"med":24.6,"y":1,"f":"2023-09-22","l":"2023-09-22","ms":[[56,1]],"top":"2139 N BURLING ST"},{"b":"2900 N LAKE SHORE DR","n":1,"r":0,"lat":41.936445,"lon":-87.637446,"med":21.9,"y":1,"f":"2023-10-23","l":"2023-10-23","ms":[[57,1]],"top":"2970 N LAKE SHORE DR"},{"b":"917G W ROSCOE ST","n":1,"r":0,"lat":41.943285,"lon":-87.652544,"med":3.9,"y":1,"f":"2023-12-10","l":"2023-12-10","ms":[[59,1]],"top":"917G W ROSCOE ST"},{"b":"3219N N CLARK ST","n":1,"r":0,"lat":41.940511,"lon":-87.65105,"med":0.7,"y":1,"f":"2024-04-03","l":"2024-04-03","ms":[[63,1]],"top":"3219N N CLARK ST"},{"b":"3404N N HALSTED ST","n":1,"r":0,"lat":41.943805,"lon":-87.649443,"med":8.9,"y":1,"f":"2024-09-30","l":"2024-09-30","ms":[[68,1]],"top":"3404N N HALSTED ST"},{"b":"814W W BUCKINGHAM PL","n":1,"r":0,"lat":41.942766,"lon":-87.649949,"med":4.8,"y":1,"f":"2025-06-13","l":"2025-06-13","ms":[[77,1]],"top":"814W W BUCKINGHAM PL"},{"b":"3900 N CLIFTON AVE","n":1,"r":0,"lat":41.950107,"lon":-87.657885,"med":10.6,"y":1,"f":"2025-07-25","l":"2025-07-25","ms":[[78,1]],"top":"3936 N CLIFTON AVE"},{"b":"3800 N WAYNE","n":1,"r":0,"lat":41.952096,"lon":-87.663249,"med":8.0,"y":1,"f":"2025-07-28","l":"2025-07-28","ms":[[78,1]],"top":"3834 N WAYNE"},{"b":"3348A N CLIFTON AVE","n":1,"r":1,"lat":41.943166,"lon":-87.657927,"med":8.1,"y":1,"f":"2025-09-15","l":"2025-09-15","ms":[[80,1]],"top":"3348A N CLIFTON AVE"},{"b":"3400 N LAKE SHORE DR SB","n":1,"r":1,"lat":41.945382,"lon":-87.641487,"med":5.8,"y":1,"f":"2025-11-07","l":"2025-11-07","ms":[[82,1]],"top":"3456 N LAKE SHORE DR SB"},{"b":"3100 N CLARK ST","n":1,"r":1,"lat":41.938236,"lon":-87.648737,"med":2.3,"y":1,"f":"2025-11-30","l":"2025-11-30","ms":[[82,1]],"top":"3101 N CLARK ST"},{"b":"3200 N LAKE SHORE DR","n":1,"r":1,"lat":41.942133,"lon":-87.640268,"med":0.5,"y":1,"f":"2025-12-25","l":"2025-12-25","ms":[[83,1]],"top":"3270 N LAKE SHORE DR"}],"streets":[{"s":"W ROSCOE ST","a":[41.9435,-87.66685],"b":[41.94356,-87.64182],"w":2,"n":435,"c":12},{"s":"N CLARK ST","a":[41.95121,-87.65999],"b":[41.93289,-87.64472],"w":2,"n":252,"c":12},{"s":"W BELMONT AVE","a":[41.94001,-87.66472],"b":[41.93991,-87.64174],"w":2,"n":223,"c":11},{"s":"N RACINE AVE","a":[41.95192,-87.65942],"b":[41.9336,-87.65851],"w":2,"n":218,"c":11},{"s":"N SHEFFIELD AVE","a":[41.95,-87.65432],"b":[41.9339,-87.65424],"w":2,"n":357,"c":10},{"s":"W BARRY AVE","a":[41.93827,-87.65726],"b":[41.93765,-87.63881],"w":2,"n":390,"c":9},{"s":"W WELLINGTON AVE","a":[41.93642,-87.65698],"b":[41.93649,-87.63826],"w":2,"n":236,"c":9},{"s":"W CORNELIA AVE","a":[41.94513,-87.66452],"b":[41.94517,-87.64667],"w":2,"n":235,"c":9},{"s":"N HALSTED ST","a":[41.94856,-87.64988],"b":[41.93406,-87.64883],"w":2,"n":153,"c":9},{"s":"W ADDISON ST","a":[41.94714,-87.66737],"b":[41.94732,-87.65131],"w":2,"n":137,"c":8},{"s":"W DIVERSEY PKWY","a":[41.9327,-87.65713],"b":[41.933,-87.64034],"w":2,"n":75,"c":8},{"s":"N SOUTHPORT AVE","a":[41.95188,-87.66416],"b":[41.94101,-87.66408],"w":2,"n":273,"c":7},{"s":"N BROADWAY","a":[41.94496,-87.64533],"b":[41.93504,-87.64392],"w":2,"n":80,"c":6},{"s":"N ASHLAND AVE","a":[41.94076,-87.66859],"b":[41.94936,-87.6685],"w":2,"n":29,"c":5},{"s":"N SHERIDAN RD","a":[41.93863,-87.6397],"b":[41.93328,-87.63957],"w":2,"n":85,"c":4},{"s":"N SEMINARY AVE","a":[41.93301,-87.65661],"b":[41.95222,-87.65661],"w":1,"n":336,"c":10},{"s":"W OAKDALE AVE","a":[41.93536,-87.65736],"b":[41.93563,-87.63849],"w":1,"n":277,"c":9},{"s":"W MELROSE ST","a":[41.9407,-87.66727],"b":[41.94095,-87.64158],"w":1,"n":219,"c":8},{"s":"N LAKEWOOD AVE","a":[41.95183,-87.66163],"b":[41.94109,-87.66152],"w":1,"n":212,"c":7},{"s":"W SCHOOL ST","a":[41.94153,-87.66675],"b":[41.94172,-87.65259],"w":1,"n":109,"c":7},{"s":"N GREENVIEW AVE","a":[41.95223,-87.66667],"b":[41.94125,-87.66609],"w":1,"n":107,"c":7},{"s":"W GRACE ST","a":[41.95081,-87.66737],"b":[41.95107,-87.65376],"w":1,"n":93,"c":7},{"s":"N BROADWAY ST","a":[41.94466,-87.64542],"b":[41.93503,-87.64413],"w":1,"n":53,"c":7},{"s":"W WAVELAND AVE","a":[41.9489,-87.66823],"b":[41.94876,-87.65141],"w":1,"n":42,"c":7},{"s":"W DIVERSEY AVE","a":[41.9328,-87.65767],"b":[41.93312,-87.64044],"w":1,"n":40,"c":7},{"s":"W NEWPORT AVE","a":[41.94457,-87.66293],"b":[41.94433,-87.65083],"w":1,"n":332,"c":6},{"s":"N CLIFTON AVE","a":[41.93738,-87.65789],"b":[41.95028,-87.65784],"w":1,"n":251,"c":6},{"s":"N WILTON AVE","a":[41.95025,-87.65336],"b":[41.93798,-87.65259],"w":1,"n":220,"c":5},{"s":"N KENMORE AVE","a":[41.95042,-87.65533],"b":[41.93727,-87.65499],"w":1,"n":321,"c":5},{"s":"N JANSSEN AVE","a":[41.9522,-87.66585],"b":[41.94408,-87.66477],"w":1,"n":133,"c":5},{"s":"W ALDINE AVE","a":[41.94193,-87.65121],"b":[41.94238,-87.64152],"w":1,"n":136,"c":5},{"s":"W BRIAR PL","a":[41.93924,-87.64814],"b":[41.93874,-87.6419],"w":1,"n":253,"c":4},{"s":"W GEORGE ST","a":[41.93466,-87.65687],"b":[41.9344,-87.64977],"w":1,"n":127,"c":4},{"s":"W SURF ST","a":[41.9346,-87.64573],"b":[41.93438,-87.63846],"w":1,"n":135,"c":4},{"s":"W HENDERSON ST","a":[41.94268,-87.66678],"b":[41.94232,-87.66025],"w":1,"n":137,"c":4},{"s":"W WOLFRAM ST","a":[41.93372,-87.65778],"b":[41.93353,-87.65004],"w":1,"n":130,"c":4},{"s":"N BOSWORTH AVE","a":[41.94439,-87.66784],"b":[41.94939,-87.66774],"w":1,"n":96,"c":4},{"s":"N PINE GROVE AVE","a":[41.9395,-87.64197],"b":[41.93366,-87.64143],"w":1,"n":48,"c":4},{"s":"N LAKE SHORE DR","a":[41.94275,-87.64058],"b":[41.93651,-87.63722],"w":1,"n":9,"c":4},{"s":"W BUCKINGHAM PL","a":[41.94259,-87.65104],"b":[41.94256,-87.6457],"w":1,"n":225,"c":3},{"s":"N WAYNE AVE","a":[41.95191,-87.66316],"b":[41.94844,-87.66245],"w":1,"n":132,"c":3},{"s":"W EDDY ST","a":[41.94613,-87.66252],"b":[41.94617,-87.6581],"w":1,"n":94,"c":3},{"s":"N BURLING ST","a":[41.934,-87.648],"b":[41.93549,-87.64772],"w":1,"n":55,"c":3}],"monthly":[406,314,500,600,667,893,1064,1076,959,834,546,399],"yearly":{"2019":1044,"2020":1168,"2021":1351,"2022":1079,"2023":1193,"2024":904,"2025":931,"2026":588},"speed":{"2026":3.6,"2019":2.2,"2020":4.0,"2021":10.0,"2022":9.7,"2023":10.1,"2024":4.1,"2025":3.7},"ts":[0,3,63,70,63,124,134,150,167,138,57,75,73,54,50,60,78,101,132,163,151,134,96,76,58,23,97,127,117,174,170,144,137,144,93,67,34,25,73,86,98,119,142,138,125,96,86,57,65,54,72,67,95,118,137,144,173,136,83,49,71,62,43,61,72,74,97,106,99,109,62,48,57,41,56,57,68,111,141,120,107,77,69,27,48,52,46,72,76,72,111,111],"detail":{"legacy_total":9089,"legacy_from":2006,"legacy_to":2018,"legacy_scored":8338,"legacy_garbage":6932,"legacy_rats":6963,"actions":[["Inspected and baited",6933],["Area inspected, no cause and no baiting",654],["Closed with no detail recorded",371],["No contact, left door hanger",250],["Backyard serviced, contact made",194]],"origin":[["Internet",3324],["Phone call",2117],["Mobile device",1854],["Alderman's office",883],["Other city apps",83]],"modern":[["Completed",8206],["Open",53],["Canceled",2]]},"geo":{"median":19.5,"p75":26.9,"over20":48},"conc":{"10":13.8,"25":27.3,"50":44.8,"100":67.9}};
+const $ = s => document.querySelector(s);
+const fmt = n => n.toLocaleString('en-US');
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const mLabel = i => MON[i%12] + ' ' + (2019 + Math.floor(i/12));
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+$('#range').textContent = D.first.slice(0,4) + '\u2013' + D.last.slice(0,4);
+
+/* masthead figures */
+$('#mastline').innerHTML = [
+  [fmt(D.total),'complaints filed'],
+  [fmt(D.recent12),'in the last 12 months'],
+  [D.nblocks,'blocks affected'],
+  [D.conc[50]+'%','from just 50 blocks'],
+  [D.medclose+' days','median time to close']
+].map(s=>`<div><b>${s[0]}</b> <span>${s[1]}</span></div>`).join('');
+
+/* ================= MAP ================= */
+const frameEl=document.getElementById('frame');
+const _fw=frameEl.clientWidth||1000, _fh=frameEl.clientHeight||640;
+const W=1000, H=Math.round(1000*_fh/_fw), PAD=Math.min(46,Math.round(W*0.035));
+let latMin=Infinity,latMax=-Infinity,lonMin=Infinity,lonMax=-Infinity;
+D.blocks.forEach(b=>{latMin=Math.min(latMin,b.lat);latMax=Math.max(latMax,b.lat);
+  lonMin=Math.min(lonMin,b.lon);lonMax=Math.max(lonMax,b.lon);});
+const K = Math.cos(41.9426*Math.PI/180);
+const gw=(lonMax-lonMin)*K, gh=(latMax-latMin);
+const S = Math.min((W-PAD*2)/gw, (H-PAD*2)/gh);
+const ox = (W - gw*S)/2, oy = (H - gh*S)/2;
+const PX = lon => ox + (lon-lonMin)*K*S;
+const PY = lat => oy + (latMax-lat)*S;
+
+const svg=$('#svg'); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+const NS='http://www.w3.org/2000/svg';
+const el=(n,a)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+
+const gRoot=el('g',{}); svg.appendChild(gRoot);
+
+/* street grid, centerlines fitted to the reports themselves */
+const gSt=el('g',{}); gRoot.appendChild(gSt);
+D.streets.forEach(st=>{
+  gSt.appendChild(el('line',{x1:PX(st.a[1]).toFixed(1),y1:PY(st.a[0]).toFixed(1),
+    x2:PX(st.b[1]).toFixed(1),y2:PY(st.b[0]).toFixed(1),
+    class:'streetline'+(st.w>1?' major':''),'stroke-width':st.w>1?1.5:0.8}));
+});
+const gLbl=el('g',{}); gRoot.appendChild(gLbl); const LBL=[];
+D.streets.filter(s=>s.c>=6).slice(0,20).forEach(st=>{
+  const x1=PX(st.a[1]),y1=PY(st.a[0]),x2=PX(st.b[1]),y2=PY(st.b[0]);
+  let ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+  if(ang>90)ang-=180; if(ang<-90)ang+=180;
+  const f=0.14, mx=x1+(x2-x1)*f, my=y1+(y2-y1)*f;
+  const txt=st.s.replace(/^[NSEW] /,'').replace(/ (ST|AVE|PL|RD|PKWY|BLVD|DR|CT|TER)$/,'');
+  const g=el('g',{class:'stlabel'});
+  g.dataset.rot=`rotate(${ang.toFixed(1)} ${mx} ${my})`; g.dataset.mx=mx; g.dataset.my=my;
+  g.setAttribute('transform',g.dataset.rot);
+  g.appendChild(el('rect',{x:mx-txt.length*2.6-3,y:my-9.6,width:txt.length*5.2+6,height:9,
+    fill:'var(--paper)','fill-opacity':.86}));
+  const tx=el('text',{x:mx,y:my-3,'text-anchor':'middle'}); tx.textContent=txt;
+  g.appendChild(tx); gLbl.appendChild(g); LBL.push(g);
+});
+
+/* block circles */
+const gB=el('g',{}); gRoot.appendChild(gB);
+const rad = v => Math.max(2.2, Math.sqrt(v)*1.55);
+const col = v => v>=60?'#BE1E3C' : v>=25?'#D98C24' : '#3F7E9C';
+const nodes = D.blocks.map(b=>{
+  const g=el('g',{class:'blk',tabindex:'0',role:'button'});
+  const c=el('circle',{cx:PX(b.lon).toFixed(1),cy:PY(b.lat).toFixed(1),r:rad(b.n),
+    fill:col(b.n),'fill-opacity':.46,'stroke-width':.7});
+  g.appendChild(c);
+  const lab=el('title'); lab.textContent=b.b; g.appendChild(lab);
+  gB.appendChild(g);
+  return {b,g,c};
+});
+
+/* window counts */
+function winCount(b,a,z){let t=0;for(const[m,c] of b.ms){if(m>=a&&m<=z)t+=c;}return t;}
+
+let MODE='all', WIN_END=D.nm-1, WIN=12;
+function paint(){
+  let shown=0,tot=0;
+  nodes.forEach(nd=>{
+    const v = MODE==='all' ? nd.b.n : winCount(nd.b, WIN_END-WIN+1, WIN_END);
+    nd.v=v; tot+=v;
+    if(v===0){nd.g.style.display='none';}
+    else{nd.g.style.display='';shown++;
+      nd.r0 = MODE==='all'?rad(v):Math.max(2.2,Math.sqrt(v)*3.4);
+      nd.c.setAttribute('r',(nd.r0/Math.pow(z,0.42)).toFixed(2));
+      nd.c.setAttribute('fill', MODE==='all'?col(v):(v>=10?'#BE1E3C':v>=4?'#D98C24':'#3F7E9C'));}
+  });
+  $('#tlcnt').textContent = fmt(tot)+' complaints \u00b7 '+shown+' blocks';
+}
+
+/* tooltip */
+const tip=$('#tip'), frame=$('#frame');
+function showTip(e, html){
+  tip.innerHTML=html; tip.style.opacity=1;
+  const r=frame.getBoundingClientRect();
+  let x=e.clientX-r.left+14, y=e.clientY-r.top+14;
+  if(x+tip.offsetWidth>r.width-8) x=e.clientX-r.left-tip.offsetWidth-14;
+  if(y+tip.offsetHeight>r.height-8) y=e.clientY-r.top-tip.offsetHeight-14;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+const hideTip=()=>tip.style.opacity=0;
+nodes.forEach(nd=>{
+  const b=nd.b;
+  const body=()=>`<b>${b.b}</b>
+    ${MODE==='all'?b.n+' all time':nd.v+' in this window'}<br>
+    <s>Last 12 mo</s> ${b.r}<br><s>Active</s> ${b.y} years<br>
+    <s>Median close</s> ${b.med!==null?b.med+' days':'n/a'}<br><s>Latest</s> ${b.l}`;
+  nd.g.addEventListener('mousemove',e=>showTip(e,body()));
+  nd.g.addEventListener('mouseleave',hideTip);
+  nd.g.addEventListener('focus',()=>{tip.innerHTML=body();tip.style.opacity=1;tip.style.left='14px';tip.style.top='14px';});
+  nd.g.addEventListener('blur',hideTip);
+  nd.g.addEventListener('click',()=>flyTo(b,3.2));
+});
+
+/* pan + zoom */
+let z=1, tx=0, ty=0;
+function apply(){
+  gRoot.setAttribute('transform',`translate(${tx} ${ty}) scale(${z})`);
+  gSt.style.strokeWidth='';
+  const k=1/z;
+  LBL.forEach(g=>{const mx=+g.dataset.mx,my=+g.dataset.my;
+    g.setAttribute('transform',`${g.dataset.rot} translate(${mx} ${my}) scale(${k}) translate(${-mx} ${-my})`);});
+  gLbl.style.display = z>7 ? 'none' : '';
+  nodes.forEach(nd=>{ if(nd.r0!==undefined) nd.c.setAttribute('r',(nd.r0/Math.pow(z,0.42)).toFixed(2)); });
+}
+function clamp(){const mx=W*(z-1),my=H*(z-1);tx=Math.min(W*0.35,Math.max(-mx-W*0.35,tx));ty=Math.min(H*0.35,Math.max(-my-H*0.35,ty));}
+function zoomAt(f,cx,cy){const nz=Math.min(14,Math.max(1,z*f));const k=nz/z;tx=cx-(cx-tx)*k;ty=cy-(cy-ty)*k;z=nz;clamp();apply();}
+function svgPt(e){const r=svg.getBoundingClientRect();return[(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H];}
+frame.addEventListener('wheel',e=>{e.preventDefault();const[cx,cy]=svgPt(e);zoomAt(e.deltaY<0?1.18:1/1.18,cx,cy);},{passive:false});
+let drag=null;
+frame.addEventListener('pointerdown',e=>{if(e.target.closest('.mapctl'))return;drag={x:e.clientX,y:e.clientY,tx,ty};frame.classList.add('drag');frame.setPointerCapture(e.pointerId);});
+frame.addEventListener('pointermove',e=>{if(!drag)return;const r=svg.getBoundingClientRect();
+  tx=drag.tx+(e.clientX-drag.x)/r.width*W; ty=drag.ty+(e.clientY-drag.y)/r.height*H; clamp(); apply();});
+frame.addEventListener('pointerup',()=>{drag=null;frame.classList.remove('drag');});
+frame.addEventListener('pointercancel',()=>{drag=null;frame.classList.remove('drag');});
+$('#zIn').onclick=()=>zoomAt(1.45,W/2,H/2);
+$('#zOut').onclick=()=>zoomAt(1/1.45,W/2,H/2);
+$('#mReset').onclick=()=>{z=1;tx=0;ty=0;apply();nodes.forEach(n=>n.g.classList.remove('dim','hi'));};
+
+function flyTo(b,nz){
+  const cx=PX(b.lon), cy=PY(b.lat);
+  z=nz; tx=W/2-cx*z; ty=H/2-cy*z; clamp(); apply();
+  nodes.forEach(n=>{n.g.classList.toggle('hi',n.b.b===b.b);n.g.classList.toggle('dim',n.b.b!==b.b);});
+  setTimeout(()=>nodes.forEach(n=>n.g.classList.remove('dim')),2600);
+  document.getElementById('map').scrollIntoView({behavior:RM?'auto':'smooth',block:'start'});
+}
+
+/* search */
+const q=$('#q'), sug=$('#sugg');
+function runSearch(){
+  const v=q.value.trim().toUpperCase();
+  if(v.length<2){sug.style.display='none';return;}
+  const hits=D.blocks.filter(b=>b.b.includes(v)).slice(0,9);
+  if(!hits.length){sug.innerHTML='<button disabled style="color:var(--slate);cursor:default">No block matches that</button>';sug.style.display='block';return;}
+  sug.innerHTML=hits.map((b,i)=>`<button data-i="${D.blocks.indexOf(b)}">${b.b}<i>${b.n}</i></button>`).join('');
+  sug.style.display='block';
+}
+q.addEventListener('input',runSearch);
+q.addEventListener('focus',runSearch);
+sug.addEventListener('click',e=>{const t=e.target.closest('button[data-i]');if(!t)return;
+  const b=D.blocks[+t.dataset.i]; q.value=b.b; sug.style.display='none'; flyTo(b,4);});
+document.addEventListener('click',e=>{if(!e.target.closest('.search'))sug.style.display='none';});
+
+/* ================= TIMELINE ================= */
+const SW=1000, SH=52;
+const sparksvg=$('#sparksvg'); sparksvg.setAttribute('viewBox',`0 0 ${SW} ${SH}`);
+const tsMax=Math.max(...D.ts);
+const bw=SW/D.nm;
+let sparkHTML='';
+D.ts.forEach((v,i)=>{const h=v/tsMax*(SH-6);
+  sparkHTML+=`<rect class="bars" x="${(i*bw).toFixed(2)}" y="${(SH-h).toFixed(2)}" width="${(bw-.9).toFixed(2)}" height="${h.toFixed(2)}"/>`;});
+sparksvg.innerHTML = `<rect id="winrect" class="win" x="0" y="0" width="0" height="${SH}"/>` + sparkHTML +
+  `<line id="curline" class="cur" x1="0" y1="0" x2="0" y2="${SH}"/>`;
+let ax=''; for(let y=2019;y<=2026;y++) ax+=`<span>${y}</span>`;
+$('#tlaxis').innerHTML=ax;
+
+function setWin(i,quiet){
+  WIN_END=Math.max(WIN-1,Math.min(D.nm-1,i));
+  const a=WIN_END-WIN+1;
+  document.getElementById('winrect').setAttribute('x',(a*bw).toFixed(2));
+  document.getElementById('winrect').setAttribute('width',(WIN*bw).toFixed(2));
+  document.getElementById('curline').setAttribute('x1',((WIN_END+1)*bw).toFixed(2));
+  document.getElementById('curline').setAttribute('x2',((WIN_END+1)*bw).toFixed(2));
+  $('#tlnow').textContent = mLabel(a)+' \u2013 '+mLabel(WIN_END);
+  if(!quiet) paint();
+}
+const spark=$('#spark');
+function sparkIdx(e){const r=spark.getBoundingClientRect();return Math.floor((e.clientX-r.left)/r.width*D.nm);}
+let sdrag=false;
+spark.addEventListener('pointerdown',e=>{sdrag=true;setMode('win');setWin(sparkIdx(e));spark.setPointerCapture(e.pointerId);});
+spark.addEventListener('pointermove',e=>{
+  const i=Math.max(0,Math.min(D.nm-1,sparkIdx(e)));
+  if(sdrag){setWin(i);stop();}
+  else showTip2(e,`<b>${mLabel(i)}</b>${D.ts[i]} complaints`);
+});
+spark.addEventListener('pointerleave',()=>$('#tip2').style.opacity=0);
+spark.addEventListener('pointerup',()=>{sdrag=false;});
+const tip2=$('#tip2');
+function showTip2(e,html){tip2.innerHTML=html;tip2.style.opacity=1;
+  const r=spark.getBoundingClientRect();let x=e.clientX-r.left+12;
+  if(x+150>r.width)x=e.clientX-r.left-160;
+  tip2.style.left=x+'px';tip2.style.top='-58px';}
+
+/* play */
+let timer=null;
+function stop(){if(timer){clearInterval(timer);timer=null;$('#play').innerHTML='&#9654;';}}
+$('#play').onclick=()=>{
+  if(timer){stop();return;}
+  setMode('win');
+  if(WIN_END>=D.nm-1) setWin(WIN-1,true);
+  $('#play').innerHTML='&#10073;&#10073;';
+  timer=setInterval(()=>{ if(WIN_END>=D.nm-1){stop();return;} setWin(WIN_END+1); }, RM?260:150);
+};
+
+function setMode(m){
+  MODE=m;
+  $('#mAll').setAttribute('aria-pressed', m==='all');
+  $('#mWin').setAttribute('aria-pressed', m==='win');
+  if(m==='all'){$('#tlnow').textContent='All time'; stop();
+    document.getElementById('winrect').style.display='none';
+    document.getElementById('curline').style.display='none';}
+  else{document.getElementById('winrect').style.display='';
+    document.getElementById('curline').style.display='';
+    setWin(WIN_END,true);}
+  paint();
+}
+$('#mAll').onclick=()=>setMode('all');
+$('#mWin').onclick=()=>{setMode('win');};
+setWin(D.nm-1,true);
+setMode('all');
+apply();
+
+/* ================= WORST BLOCKS ================= */
+$('#offs').innerHTML = D.blocks.slice(0,5).map((b,i)=>{
+  const sv=`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${b.tlat},${b.tlon}&heading=${b.thead}&pitch=0&fov=80`;
+  return `<div class="off">
+    <div class="r">NO. ${i+1}</div>
+    <div class="n">${b.n}</div>
+    <div class="u">complaints</div>
+    <div class="a">${b.b}</div>
+    <div class="m">${b.r} in the last 12 months<br>active ${b.y} of 8 years<br>worst address: ${b.top.replace(/^(\d+)\s/,'$1 ')}<br>${b.tn} reports there alone</div>
+    <a href="${sv}" target="_blank" rel="noopener">Street View &rarr;</a>
+  </div>`;
+}).join('');
+
+/* ================= WHAT IS REPORTED ================= */
+function hbars(el, rows, unit){
+  const max=Math.max(...rows.map(r=>r[1])), tot=rows.reduce((a,r)=>a+r[1],0);
+  el.innerHTML = rows.map((r,i)=>`<div class="hb" data-t="<b>${r[0]}</b>${fmt(r[1])} ${unit}<br>${(r[1]/tot*100).toFixed(1)}% of the total">
+    <div class="lb">${r[0]}</div><div class="v">${fmt(r[1])}</div>
+    <div class="track"><i class="${i===0?'lead':''}" style="width:${r[1]/max*100}%"></i></div></div>`).join('');
+}
+hbars($('#acts'), D.detail.actions, 'tickets');
+hbars($('#orig'), D.detail.origin, 'complaints');
+$('#actnote').textContent =
+  'Through 2018 the city published what the crew found. Of '+fmt(D.detail.legacy_scored)+
+  ' scored tickets in this ward, '+Math.round(D.detail.legacy_rats/D.detail.legacy_scored*100)+
+  '% recorded rats on at least one premises and '+Math.round(D.detail.legacy_garbage/D.detail.legacy_scored*100)+
+  '% recorded garbage on at least one. The two travel together almost every time.';
+$('#orignote').textContent =
+  'Most complaints now arrive through a web form rather than a phone call, and roughly one in ten is routed through the alderman\u2019s office rather than filed directly.';
+$('#gapnote').innerHTML =
+  'The honest answer to \u201cwhat are people complaining about\u201d is that the city stopped recording it. Since 2019 every ticket in this ward closes as <b>Completed</b> \u2014 '+
+  fmt(D.detail.modern[0][1])+' of them \u2014 with no note of whether rats were found, whether anything was baited, or whether the crew got through the gate. '+
+  'The premises counts, the door hangers and the backyard visits all disappeared from the public data when the 311 system was replaced.';
+
+/* ================= SEASON ================= */
+const mmax=Math.max(...D.monthly), mtot=D.monthly.reduce((a,b)=>a+b,0);
+$('#mbars').innerHTML = D.monthly.map((v,i)=>
+  `<div class="${v>mmax*.9?'peak':''}" style="height:${v/mmax*100}%"
+   data-t="<b>${MON[i]}</b>${fmt(v)} complaints<br>${(v/mtot*100).toFixed(1)}% of the year"></div>`).join('');
+$('#mlbl').innerHTML = MON.map(m=>`<span>${m[0]}</span>`).join('');
+$('#mmax').textContent = fmt(mmax)+' in August, the peak month';
+
+/* ================= RESPONSE ================= */
+const yrs=Object.keys(D.speed).sort(), sv=yrs.map(y=>D.speed[y]);
+const smax=Math.max(...sv)*1.2;
+const cx=i=>(i/(yrs.length-1))*100;
+const poly=yrs.map((y,i)=>`${cx(i)},${(100-D.speed[y]/smax*100).toFixed(2)}`).join(' ');
+$('#sline').innerHTML =
+  `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+     <polyline points="${poly}" fill="none" stroke="#132430" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+   </svg>` +
+  yrs.map((y,i)=>{
+    const b=D.speed[y]/smax*100, w=100/yrs.length;
+    return `<span class="hit" style="left:${Math.max(0,cx(i)-w/2)}%;width:${w}%"
+              data-t="<b>${y}</b>${D.speed[y]} days median<br>${fmt(D.yearly[y])} complaints"></span>
+            <span class="pt" style="left:${cx(i)}%;bottom:${b}%"></span>`;
+  }).join('');
+$('#slbl').innerHTML = yrs.map(y=>`<span>${y.slice(2)}</span>`).join('');
+$('#smax').textContent = Math.max(...sv)+' days in the slowest year';
+
+/* shared chart tooltip */
+const ctip=document.createElement('div'); ctip.className='tip'; ctip.style.position='fixed';
+document.body.appendChild(ctip);
+document.addEventListener('mousemove',e=>{
+  const t=e.target.closest('[data-t]');
+  if(!t){ctip.style.opacity=0;return;}
+  ctip.innerHTML=t.dataset.t; ctip.style.opacity=1;
+  let x=e.clientX+14,y=e.clientY+14;
+  if(x+ctip.offsetWidth>innerWidth-10)x=e.clientX-ctip.offsetWidth-14;
+  ctip.style.left=x+'px'; ctip.style.top=y+'px';
+});
+
+/* ================= TABLE ================= */
+$('#tbody').innerHTML = D.blocks.slice(0,30).map((b,i)=>{
+  const yrCounts=Array(8).fill(0);
+  b.ms.forEach(([m,c])=>{yrCounts[Math.floor(m/12)]+=c;});
+  const ymax=Math.max(...yrCounts,1);
+  const sp=yrCounts.map((v,j)=>`<rect x="${j*7}" y="${16-v/ymax*16}" width="5.4" height="${Math.max(1,v/ymax*16)}" fill="#56707E" opacity=".62"/>`).join('');
+  return `<tr data-i="${i}">
+    <td class="rk">${String(i+1).padStart(2,'0')}</td>
+    <td>${b.b}</td>
+    <td><svg class="spk" width="56" height="17" viewBox="0 0 56 17">${sp}</svg></td>
+    <td class="n">${b.n}</td><td class="n">${b.r}</td><td class="n">${b.y}</td>
+    <td class="n">${b.med!==null?b.med:'\u2013'}</td></tr>`;
+}).join('');
+$('#tbody').addEventListener('click',e=>{const tr=e.target.closest('tr[data-i]');if(tr)flyTo(D.blocks[+tr.dataset.i],4);});
+</script>
+</body>
+</html>
